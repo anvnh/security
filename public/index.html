@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Backend Security Lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div>
+          <p> Haha hello </p>
+        </div>
+      </div>
+
+      <div class="mode-control-card">
+        <span class="mode-label">System Mode:</span>
+        <div class="toggle-switch-wrapper">
+          <button id="modeVulnerableBtn" class="mode-btn active vulnerable" onclick="setSecurityMode('vulnerable')">
+            VULNERABLE
+          </button>
+          <button id="modeSecureBtn" class="mode-btn secure" onclick="setSecurityMode('secure')">
+            SECURE
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="nav-tabs-container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('sqli')">
+        <i class="fa-solid fa-database"></i> QL Injection (SQLi)
+      </button>
+      <button class="tab-btn" onclick="switchTab('xss')">
+        <i class="fa-solid fa-code"></i> Cross-Site Scripting (XSS)
+      </button>
+      <button class="tab-btn" onclick="switchTab('logs')">
+        <i class="fa-solid fa-clipboard-list"></i> Security Audit Logs <span id="badgeLogCount"
+          class="badge-count">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('docs')">
+        <i class="fa-solid fa-book"></i> Demonstration Guide (PoC)
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <section id="tab-sqli" class="tab-pane active">
+      <div class="section-intro">
+        <h2><i class="fa-solid fa-database"></i> SQL Injection Simulation</h2>
+        <p>Vulnerability occurs when untrusted user input is directly concatenated into SQL queries without sanitization
+          or parameterization.</p>
+      </div>
+
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-key"></i> Scenario 1: Authentication Bypass</h3>
+            <span class="badge badge-critical">Auth Bypass</span>
+          </div>
+          <div class="card-body">
+            <p class="card-desc">Bypass password validation to authenticate directly as the admin user.</p>
+
+            <div class="payload-box">
+              <span class="payload-title">Quick Attack Payloads:</span>
+              <div class="payload-buttons">
+                <button class="btn-sm" onclick="fillLoginPayload('admin\' --', 'any_pass')">admin' --</button>
+                <button class="btn-sm" onclick="fillLoginPayload('\' OR 1=1 --', 'any_pass')">' OR 1=1 --</button>
+                <button class="btn-sm" onclick="fillLoginPayload('admin', 'Admin@123456')">Normal Credentials</button>
+              </div>
+            </div>
+
+            <form id="formLogin" onsubmit="handleLogin(event)">
+              <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="loginUsername" placeholder="Enter username or SQLi payload..." required>
+              </div>
+              <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="loginPassword" placeholder="Enter password...">
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-right-to-bracket"></i> Attempt Login
+              </button>
+            </form>
+
+            <div id="loginResult" class="result-box hidden"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-table-list"></i> Scenario 2: UNION Data Exfiltration</h3>
+            <span class="badge badge-high">Data Exfiltration</span>
+          </div>
+          <div class="card-body">
+            <p class="card-desc">Exploit product search endpoint to exfiltrate usernames and password hashes from the
+              users table.</p>
+
+            <div class="payload-box">
+              <span class="payload-title">Quick Attack Payloads:</span>
+              <div class="payload-buttons">
+                <button class="btn-sm" onclick="fillSearchPayload('Laptop')">Normal Query: Laptop</button>
+                <button class="btn-sm"
+                  onclick="fillSearchPayload('\' UNION SELECT id, username, password, 0, role FROM users --')">Exfiltrate
+                  Users Table via UNION</button>
+              </div>
+            </div>
+
+            <form id="formSearch" onsubmit="handleProductSearch(event)">
+              <div class="form-group">
+                <label>Product Search Keyword:</label>
+                <input type="text" id="searchKeyword" placeholder="Enter product name or SQLi payload...">
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-magnifying-glass"></i> Search Products
+              </button>
+            </form>
+
+            <div id="searchResult" class="result-box hidden"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-xss" class="tab-pane">
+      <div class="section-intro">
+        <h2><i class="fa-solid fa-code"></i> Cross-Site Scripting (XSS) Simulation</h2>
+        <p>Vulnerability occurs when application renders unvalidated user input into DOM or HTML responses, allowing
+          arbitrary script execution.</p>
+      </div>
+
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-database"></i> 1. Stored XSS (Persistent)</h3>
+            <span class="badge badge-high">Persistent in DB</span>
+          </div>
+          <div class="card-body">
+            <p class="card-desc">Injected payload is stored persistently in the database and executed whenever any user
+              views the comments.</p>
+
+            <div class="payload-box">
+              <span class="payload-title">Quick Attack Payloads:</span>
+              <div class="payload-buttons">
+                <button class="btn-sm"
+                  onclick="fillCommentPayload('Attacker', '<img src=x onerror=alert(\'XSS_Stored_Executed\')>')">img
+                  onerror Alert</button>
+                <button class="btn-sm"
+                  onclick="fillCommentPayload('Attacker', '<script>alert(document.cookie)<\/script>')">script Alert
+                  Cookie</button>
+                <button class="btn-sm" onclick="fillCommentPayload('User', 'Great product, highly recommended!')">Normal
+                  Comment</button>
+              </div>
+            </div>
+
+            <form id="formComment" onsubmit="handlePostComment(event)">
+              <div class="form-group">
+                <label>Author Name:</label>
+                <input type="text" id="commentAuthor" placeholder="Author name..." required>
+              </div>
+              <div class="form-group">
+                <label>Comment Content:</label>
+                <textarea id="commentContent" rows="3" placeholder="Enter comment or script payload..."
+                  required></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fa-solid fa-paper-plane"></i> Submit Comment
+                </button>
+                <button type="button" class="btn btn-outline" onclick="resetComments()">
+                  <i class="fa-solid fa-rotate-left"></i> Reset Sample Comments
+                </button>
+              </div>
+            </form>
+
+            <div class="comments-section">
+              <h4>Current Comments:</h4>
+              <div id="commentsList" class="comments-list">
+                <em>Loading comments...</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-reply"></i> 2. Reflected XSS (Non-Persistent)</h3>
+            <span class="badge badge-medium">Reflected Response</span>
+          </div>
+          <div class="card-body">
+            <p class="card-desc">Query parameter from the request is echoed directly back in the response body without
+              HTML encoding.</p>
+
+            <div class="payload-box">
+              <span class="payload-title">Quick Attack Payloads:</span>
+              <div class="payload-buttons">
+                <button class="btn-sm"
+                  onclick="fillReflectedPayload('<img src=x onerror=alert(\'Reflected_XSS_Executed\')>')">img
+                  onerror</button>
+                <button class="btn-sm"
+                  onclick="fillReflectedPayload('<h2 style=color:red>Defaced Content by Attacker</h2>')">HTML Injection
+                  Deface</button>
+              </div>
+            </div>
+
+            <form id="formReflected" onsubmit="handleReflectedSearch(event)">
+              <div class="form-group">
+                <label>Search Query Parameter:</label>
+                <input type="text" id="reflectedQuery" placeholder="Enter query string or XSS payload...">
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-magnifying-glass"></i> Submit Query
+              </button>
+            </form>
+
+            <div id="reflectedResult" class="result-box hidden"></div>
+
+            <div class="cookie-inspector">
+              <h4><i class="fa-solid fa-shield"></i> Session Cookie Inspector:</h4>
+              <pre id="cookieDisplay">Reading document.cookie...</pre>
+              <small class="hint-text">In Secure mode, cookies are flagged with HttpOnly, making document.cookie
+                completely inaccessible to client-side scripts.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-logs" class="tab-pane">
+      <div class="section-intro">
+        <h2><i class="fa-solid fa-clipboard-list"></i> Logging</h2>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value" id="metricTotal">0</div>
+          <div class="metric-title">Total Security Events</div>
+        </div>
+        <div class="metric-card metric-critical">
+          <div class="metric-value" id="metricSQLi">0</div>
+          <div class="metric-title">SQL Injection Events</div>
+        </div>
+        <div class="metric-card metric-high">
+          <div class="metric-value" id="metricXSS">0</div>
+          <div class="metric-title">XSS Attack Events</div>
+        </div>
+        <div class="metric-card metric-warning">
+          <div class="metric-value" id="metricCritical">0</div>
+          <div class="metric-title">Critical Severity Incidents</div>
+        </div>
+      </div>
+
+      <div class="card mt-20">
+        <div class="card-header flex-between">
+          <h3>Security Incident Audit Log</h3>
+          <div>
+            <button class="btn btn-sm btn-outline" onclick="loadSecurityLogs()">
+              <i class="fa-solid fa-arrows-rotate"></i> Refresh
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="clearSecurityLogs()">
+              <i class="fa-solid fa-trash"></i> Clear Logs
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table-logs">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Client IP</th>
+                  <th>Severity</th>
+                  <th>Event Type</th>
+                  <th>Endpoint</th>
+                  <th>Action Taken</th>
+                  <th>Payload Details</th>
+                </tr>
+              </thead>
+              <tbody id="logsTableBody">
+                <tr>
+                  <td colspan="7" class="text-center">No security incidents recorded.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <div class="pagination-info" id="paginationInfo">Showing 0 to 0 of 0 logs</div>
+            <div class="pagination-controls">
+              <div class="pagination-limit-wrapper">
+                <label for="logsLimitSelect">Per page:</label>
+                <select id="logsLimitSelect" onchange="changeLogsLimit(this.value)">
+                  <option value="15" selected>15</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+              <button class="btn-page" id="prevPageBtn" onclick="changeLogsPage(-1)">
+                <i class="fa-solid fa-chevron-left"></i> Previous
+              </button>
+              <span class="pagination-page-indicator" id="pageIndicator">Page 1 of 1</span>
+              <button class="btn-page" id="nextPageBtn" onclick="changeLogsPage(1)">
+                Next <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-docs" class="tab-pane">
+      <div class="section-intro">
+        <h2><i class="fa-solid fa-book"></i> Demonstration and Testing Guide</h2>
+        <p>Step-by-step procedures to demonstrate vulnerability exploitation and defense verification.</p>
+      </div>
+
+      <div class="docs-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-list-check"></i> Scenario 1: SQL Injection Demonstration</h3>
+          </div>
+          <div class="card-body doc-content">
+            <ol>
+              <li>Select <code>VULNERABLE</code> mode in the upper right switcher.</li>
+              <li>Navigate to <strong>SQL Injection</strong> tab and click the <code>admin' --</code> button on the
+                login form.</li>
+              <li>Click "Attempt Login". The system grants administrative access without requiring a valid password.
+                Notice the raw SQL executed in backend logs.</li>
+              <li>Go to the product search form, click <code>Exfiltrate Users Table via UNION</code>, and execute
+                search. User credentials and password hashes are dumped into the results.</li>
+              <li>Switch system mode to <code>SECURE</code> and repeat both attacks. The parameterized queries and input
+                validation strictly reject and block the attempts.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-list-check"></i> Scenario 2: XSS and Cookie Theft Demonstration</h3>
+          </div>
+          <div class="card-body doc-content">
+            <ol>
+              <li>Under <code>VULNERABLE</code> mode, open the <strong>Cross-Site Scripting</strong> tab.</li>
+              <li>Select <code>img onerror Alert</code> or <code>script Alert Cookie</code> and submit comment.</li>
+              <li>The browser immediately triggers the alert popup, confirming arbitrary JavaScript execution from
+                database persistence.</li>
+              <li>Switch to <code>SECURE</code> mode and reload the comments.</li>
+              <li>Notice that the script tags are properly HTML entity encoded and rendered safely as text without
+                execution. Furthermore, the session cookie is protected with the <code>HttpOnly</code> attribute.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-shield"></i> Scenario 3: Security Telemetry and Audit</h3>
+          </div>
+          <div class="card-body doc-content">
+            <ul>
+              <li>Open the <strong>Security Audit Logs</strong> tab to inspect all real-time incident records.</li>
+              <li>Each entry contains timestamp, source IP, endpoint, severity, action taken (EXPLOITED vs BLOCKED), and
+                full payload details.</li>
+              <li>Demonstrates compliance with OWASP Security Logging and Monitoring requirements.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>
