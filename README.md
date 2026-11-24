@@ -1,70 +1,162 @@
-# Web Backend Security Simulation and Defense System
+# Web Security Demonstration Laboratory
 
-Course: Computer Security / Information Security  
-Architecture: Node.js (Express), SQLite (better-sqlite3), Vanilla Web Frontend  
-Team Scope: SQL Injection, Cross-Site Scripting (XSS), Security Logging and Audit Trail  
+A minimal blog-style web application built to demonstrate common web security vulnerabilities and their production-grade countermeasures:
 
----
-
-## 1. System Overview
-
-This application demonstrates common web backend vulnerabilities alongside their respective production-grade mitigations. It features a runtime security toggle allowing side-by-side comparison between Vulnerable Mode and Secure Mode.
-
-* Database: File-based SQLite (`security_demo.db`). Fully self-contained with zero external configuration required on both Linux and Windows environments.
-* Vulnerable Mode: Demonstrates raw SQL string interpolation, unescaped DOM/HTML reflections, and missing security headers.
-* Secure Mode: Implements parameterized queries, contextual HTML output encoding, strict Content Security Policy (CSP), and HttpOnly cookie flags.
-* Security Telemetry: Automated heuristic detection engine classifying incident severity (CRITICAL, HIGH, MEDIUM, LOW) and logging audit trails to SQLite and `logs/security.log`.
+- **SQL Injection (SQLi) — Full Attack Chain**:
+  - Phase 1: Data Exfiltration via Search (`/?q=`)
+  - Phase 2: Authentication Bypass via Login (`/login`)
+- **Stored Cross-Site Scripting (XSS)**: Unescaped user-controlled content vs Context-aware output encoding
 
 ---
 
-## 2. Installation and Running
+## Technology Stack
+
+- **Language**: Python 3.13+
+- **Backend Framework**: Flask
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript, Jinja2
+- **Database**: SQLite (Python's built-in `sqlite3`)
+- **Password Hashing**: Argon2id (`argon2-cffi`)
+- **Testing**: Pytest
+
+---
+
+## Architecture Overview
+
+```
+security/
+├── app/
+│   ├── __init__.py          # Flask application factory (create_app)
+│   ├── config.py            # App configuration with pathlib support
+│   ├── security.py          # Centralized security mode management & Argon2id
+│   ├── db.py                # Database connection, init, reset, and CLI commands
+│   ├── schema.sql           # Database schema definition
+│   ├── seed.sql             # Predictable demonstration seed data (8 users)
+│   ├── routes/
+│   │   ├── auth.py          # Register, login (SQLi Auth Bypass target), logout
+│   │   ├── blog.py          # Post list, search (SQLi Data Exfiltration target), comments (XSS target)
+│   │   ├── security_mode.py # Security mode toggle endpoint
+│   │   └── lab.py           # Demonstration guide (/lab/guide) and reset endpoint
+│   ├── static/
+│   │   ├── css/
+│   │   │   ├── style.css    # Minimal GitHub-dark inspired theme
+│   │   │   └── lab.css      # Lab guide specific styling
+│   │   └── js/
+│   │       ├── main.js      # Vanilla JS for toggle
+│   │       └── lab.js       # Copy-to-clipboard functionality
+│   └── templates/
+│       ├── base.html        # Base layout with floating security toggle
+│       ├── auth/            # Sign in and registration templates
+│       ├── blog/            # Feed, search, and post detail templates
+│       └── lab/
+│           └── guide.html   # Presenter demonstration guide
+├── tests/                   # Pytest test suite (100% vulnerability coverage)
+├── requirements.txt         # Pinned production dependencies
+├── run.py                   # Application launch script (binds to 127.0.0.1)
+├── init_db.py               # Cross-platform database initialization and reset script
+└── README.md                # Project documentation and setup instructions
+```
+
+---
+
+## Setup Instructions
 
 ### Prerequisites
-* Node.js (version 18 or later)
-* npm
+- Python 3.13 or newer installed.
+- Git.
 
-### Setup
+### Linux Setup
 ```bash
-npm install
+# 1. Clone repository (if not already done)
+git clone https://github.com/anvnh/security.git
+cd security
+
+# 2. Create virtual environment
+python3 -m venv .venv
+
+# 3. Activate virtual environment
+source .venv/bin/activate
+
+# 4. Install pinned dependencies
+pip install -r requirements.txt
+
+# 5. Initialize database
+python init_db.py init
+
+# 6. Run the application
+python run.py
 ```
 
-### Start Server
-```bash
-npm start
-```
-Access the application interface at `http://localhost:3000`.
+### Windows Setup (Command Prompt or PowerShell)
+```cmd
+:: 1. Navigate to directory
+cd security
 
-### Run Automated Attack Verification
+:: 2. Create virtual environment
+python -m venv .venv
+
+:: 3. Activate virtual environment
+:: Command Prompt:
+.venv\Scripts\activate.bat
+:: Or PowerShell:
+.venv\Scripts\Activate.ps1
+
+:: 4. Install pinned dependencies
+pip install -r requirements.txt
+
+:: 5. Initialize database
+python init_db.py init
+
+:: 6. Run the application
+python run.py
+```
+
+The application will start on `http://127.0.0.1:5000/`.
+
+---
+
+## Security Mode Toggle
+
+The application features a floating toggle in the bottom-right corner of every page:
+- **Default State**: **Secure Mode** (green badge).
+- **Toggle**: Click the badge at any time to switch between **Secure Mode** and **Vulnerable Mode** without restarting the application.
+- **Session-Scoped**: Each browser session maintains its own security mode independently.
+- **Persistence**: Selected mode is preserved across login and logout authentication transitions.
+- **Password Hashing**: Argon2id password hashing remains active in both modes.
+
+---
+
+## Demonstration Guide (`/lab/guide`)
+
+Visit `http://127.0.0.1:5000/lab/guide` for full presenter instructions, copyable payloads, and expected outputs.
+
+### Pre-seeded Accounts
+| Username | Password | Role |
+| --- | --- | --- |
+| `admin` | `admin123` | System Administrator |
+| `alice` | `alice123` | Security Analyst |
+| `bob` | `bob123` | Software Engineer |
+| `john` | `H3FDWr_WgR7p6LVC` | Distributed Systems Developer |
+| `sarah` | `iUXPrZ00FLZCfVzI` | Frontend Developer |
+| `david` | `KFwzi5tZyl1RsYu0` | DevOps Engineer |
+| `emily` | `IAcRKMR-D-FKtyyJ` | Data Scientist |
+| `alex` | `BhGAFzQZOXKF39Ch` | CS Student |
+
+### Database Reset
+To restore all demonstration data to its pristine initial state, click **"Reset Laboratory State"** on `/lab/guide` or run:
 ```bash
-npm run test:attacks
+python init_db.py reset
+```
+or via Flask CLI:
+```bash
+flask --app run:app reset-db
 ```
 
 ---
 
-## 3. Vulnerability Scenarios and Defenses
+## Running the Test Suite
 
-### SQL Injection (SQLi)
-* Authentication Bypass:
-  * Vulnerable implementation concatenates user credentials directly into `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`.
-  * Attack payload: `admin' --` truncates the password verification predicate.
-  * Mitigation: Parameterized prepared statements (`db.prepare('SELECT * FROM users WHERE username = ?')`) and bcrypt password hashing.
-* UNION-Based Data Exfiltration:
-  * Product search endpoint concatenates search terms into `LIKE '%${query}%'`.
-  * Attack payload: `' UNION SELECT id, username, password, 0, role FROM users --`
-  * Mitigation: Strict parameter binding for search queries.
+Run pytest to verify vulnerabilities and defenses across both security modes:
 
-### Cross-Site Scripting (XSS)
-* Stored XSS:
-  * Unsanitized comment submissions are stored in the database and rendered without contextual encoding.
-  * Attack payload: `<img src=x onerror=alert('XSS_Stored')>`
-  * Mitigation: Server-side HTML entity encoding (`&`, `<`, `>`, `"`, `'`).
-* Reflected XSS:
-  * Query parameters echoed back in response banners.
-  * Mitigation: Output encoding and Content Security Policy enforcement.
-* Cookie Hijacking Mitigation:
-  * Session cookies are configured with `HttpOnly: true` and `SameSite: Strict`, preventing client-side script access to session tokens.
-
-### Logging and Monitoring
-* Tracks attack vectors including SQLi patterns and XSS injection attempts.
-* Records source IP, target endpoint, payload data, timestamp, and enforcement action (EXPLOITED vs BLOCKED).
-* Provides a real-time administrative audit dashboard at `/api/logs`.
+```bash
+pytest
+```

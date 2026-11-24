@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} — SecDemo Blog{% endblock %}
+
+{% block content %}
+<article class="single-post">
+    <header class="post-header">
+        <a href="{{ url_for('blog.index') }}" class="back-link">← Back to all posts</a>
+        <h1>{{ post.title }}</h1>
+        <div class="post-meta">
+            <span>Author: <strong>{{ post.username }}</strong></span>
+            <span>•</span>
+            <span>Date: {{ post.created_at }}</span>
+        </div>
+    </header>
+
+    <div class="post-body">
+        <p>{{ post.content }}</p>
+    </div>
+</article>
+
+<section class="comments-section" id="comments">
+    <h2>Comments ({{ comments|length }})</h2>
+    <p class="subtitle">Leave your thoughts below. (Demonstration target for Stored XSS)</p>
+
+    <form action="{{ url_for('blog.add_comment', post_id=post.id) }}" method="POST" class="comment-form">
+        {% if not current_user %}
+            <div class="form-group">
+                <label for="author_name">Your Name:</label>
+                <input type="text" id="author_name" name="author_name" placeholder="Guest" class="form-control">
+            </div>
+        {% else %}
+            <p class="comment-as">Commenting as <strong>{{ current_user.username }}</strong></p>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="content">Comment:</label>
+            <textarea id="content" name="content" rows="3" placeholder="Write your comment..." required class="form-control"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Post Comment</button>
+    </form>
+
+    <div class="comments-list">
+        {% if comments %}
+            {% for comment in comments %}
+                <div class="comment-card">
+                    <div class="comment-header">
+                        <strong>{{ comment.author_name }}</strong>
+                        <span class="comment-date">{{ comment.created_at }}</span>
+                    </div>
+                    <div class="comment-content">
+                        {# In Secure Mode, Jinja2 auto-escapes. In Vulnerable Mode, content is rendered unescaped #}
+                        {% if is_secure %}
+                            {{ comment.content }}
+                        {% else %}
+                            {{ comment.content | safe }}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-comments">No comments yet. Be the first to reply!</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

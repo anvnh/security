@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Demonstration Guide — Web Security Laboratory{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lab.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="lab-guide">
+    <header class="lab-header">
+        <div>
+            <h1>Security Laboratory Demonstration Guide</h1>
+            <p class="lab-description">
+                Reference manual for instructors and presenters. Use this guide to walk through reproducible demonstrations
+                of the SQL Injection Full Attack Chain (Reconnaissance to Account Takeover) and Stored Cross-Site Scripting.
+            </p>
+        </div>
+        <div class="lab-actions">
+            <form action="{{ url_for('lab.reset_laboratory') }}" method="POST" onsubmit="return confirm('Reset all laboratory data back to initial state?');">
+                <button type="submit" class="btn btn-danger">↺ Reset Laboratory State</button>
+            </form>
+        </div>
+    </header>
+
+    <nav class="lab-toc">
+        <a href="#sqli" class="toc-badge">1. SQL Injection (Full Attack Chain)</a>
+        <a href="#xss" class="toc-badge">2. Stored Cross-Site Scripting (XSS)</a>
+    </nav>
+
+    <!-- 1. SQL Injection Full Attack Chain -->
+    <section class="lab-card" id="sqli">
+        <div class="lab-card-header">
+            <span class="vulnerability-tag">CWE-89</span>
+            <h2>1. SQL Injection (SQLi) — Full Attack Chain</h2>
+        </div>
+        <div class="lab-card-body">
+            <p><strong>Description & Root Cause:</strong> Untrusted user input is formatted directly into SQL query strings rather than bound using parameterized queries. This enables a realistic two-phase attack chain: first dumping users and hashes via search, then bypassing authentication to take over the administrator account.</p>
+            <p><strong>Target Features:</strong> Post Search (<a href="{{ url_for('blog.index') }}"><code>/</code></a>) and Account Login (<a href="{{ url_for('auth.login') }}"><code>/login</code></a>)</p>
+
+            <h3>Demonstration Steps</h3>
+            <ol>
+                <li>Toggle mode to <strong>Vulnerable Mode</strong> via the floating switch in the bottom-right corner.</li>
+            </ol>
+
+            <h4>Phase 1: Reconnaissance & Data Exfiltration (Search)</h4>
+            <p>An unauthenticated attacker explores the public search bar at the home page. They enter a UNION payload to dump all user records and password hashes:</p>
+
+            <div class="copy-box">
+                <label>Phase 1 Payload (Paste into Home Page Search Bar):</label>
+                <div class="copy-input-row">
+                    <input type="text" readonly value="' UNION SELECT id, username, password_hash, bio, created_at, 'admin' FROM users --" class="copy-field" id="payload-sqli-search">
+                    <button type="button" class="btn btn-secondary btn-copy" data-target="payload-sqli-search">Copy</button>
+                </div>
+            </div>
+
+            <p>The blog feed immediately displays all 8 user records from the <code>users</code> table, exposing usernames (including <code>admin</code> and <code>alice</code>) and their Argon2id password hashes.</p>
+
+            <h4>Phase 2: Account Takeover via Authentication Bypass (Login)</h4>
+            <p>Having identified that <code>admin</code> and <code>alice</code> exist, the attacker navigates to <a href="{{ url_for('auth.login') }}"><code>/login</code></a>. Using their knowledge of Alice's account (password: <code>alice123</code>), they substitute Admin's password hash with Alice's hash:</p>
+
+            <div class="copy-box">
+                <label>Phase 2 Payload (Paste into Login Username field):</label>
+                <div class="copy-input-row">
+                    <input type="text" readonly value="' UNION SELECT (SELECT id FROM users WHERE username = 'admin'), 'admin', password_hash FROM users WHERE username = 'alice' --" class="copy-field" id="payload-sqli-login">
+                    <button type="button" class="btn btn-secondary btn-copy" data-target="payload-sqli-login">Copy</button>
+                </div>
+            </div>
+
+            <p>Enter Alice's known password (<code>alice123</code>) into the <strong>Password</strong> field and click <strong>Sign In</strong>.</p>
+
+            <h4>Expected Behavior</h4>
+            <p><strong>Vulnerable Mode:</strong> In Phase 1, the search query dumps the entire <code>users</code> table into the public feed. In Phase 2, the login query synthesizes an admin record carrying Alice's password hash, allowing the attacker to sign in as <strong>@admin</strong> with Alice's password.</p>
+            <p><strong>Secure Mode:</strong> Both search and login use parameterized queries (<code>?</code> placeholder). The search bar treats the UNION string literally and returns 0 matching posts. The login page searches for a user whose literal username is the payload string, rejecting the attempt with <strong>401 Unauthorized</strong>.</p>
+
+            <div class="source-ref">
+                <strong>Source Code References:</strong> <code>app/routes/blog.py:index()</code> & <code>app/routes/auth.py:login()</code>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Stored Cross-Site Scripting -->
+    <section class="lab-card" id="xss">
+        <div class="lab-card-header">
+            <span class="vulnerability-tag">CWE-79</span>
+            <h2>2. Stored Cross-Site Scripting (XSS)</h2>
+        </div>
+        <div class="lab-card-body">
+            <p><strong>Description & Root Cause:</strong> User-submitted comment text is stored in the database and later rendered in HTML templates without escaping, causing browser execution of attacker-supplied scripts.</p>
+            <p><strong>Target Feature:</strong> Post Comments (<a href="{{ url_for('blog.post_detail', post_id=1) }}#comments"><code>/posts/1#comments</code></a>)</p>
+            <p><strong>Prerequisites:</strong> None (guests or logged-in users may comment).</p>
+
+            <h3>Demonstration Steps</h3>
+            <ol>
+                <li>Toggle mode to <strong>Vulnerable Mode</strong>.</li>
+                <li>Navigate to Post 1 and scroll down to the Comments section.</li>
+                <li>Submit a comment containing the copyable script payload:</li>
+            </ol>
+
+            <div class="copy-box">
+                <label>Payload (Script Alert Execution):</label>
+                <div class="copy-input-row">
+                    <input type="text" readonly value="<script>alert('Stored XSS Executed! Cookie: ' + document.cookie);</script>" class="copy-field" id="payload-xss-1">
+                    <button type="button" class="btn btn-secondary btn-copy" data-target="payload-xss-1">Copy</button>
+                </div>
+            </div>
+
+            <h4>Expected Behavior</h4>
+            <p><strong>Vulnerable Mode:</strong> The comment template renders with Jinja2's <code>| safe</code> filter, outputting raw HTML. When the page renders, the JavaScript modal executes immediately in the victim's browser.</p>
+            <p><strong>Secure Mode:</strong> Context-aware output encoding translates HTML special characters (<code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>) into HTML character entities. The script text is displayed harmlessly as plain text.</p>
+
+            <div class="source-ref">
+                <strong>Source Code Reference:</strong> <code>app/templates/blog/post.html</code> & <code>app/routes/blog.py:add_comment()</code>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/lab.js') }}"></script>
+{% endblock %}

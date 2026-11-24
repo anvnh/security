@@ -1,0 +1,154 @@
+/* Demonstration Guide Styling */
+.lab-guide {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.lab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+}
+
+.lab-description {
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.lab-toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+
+.toc-badge {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.toc-badge:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.lab-card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 32px;
+    overflow: hidden;
+}
+
+.lab-card-header {
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.lab-card-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.vulnerability-tag {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+}
+
+.lab-card-body {
+    padding: 20px;
+}
+
+.lab-card-body p {
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.lab-card-body h3 {
+    font-size: 15px;
+    margin: 20px 0 10px;
+}
+
+.lab-card-body h4 {
+    font-size: 14px;
+    margin: 18px 0 8px;
+    color: var(--text-primary);
+}
+
+.lab-card-body ol {
+    margin-left: 20px;
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.copy-box {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin: 12px 0 16px;
+}
+
+.copy-box label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.copy-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.copy-field {
+    flex: 1;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.copy-field:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.source-ref {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-muted);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.source-ref code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+}

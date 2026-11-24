@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Web Security Laboratory{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container nav-container">
+            <a href="{{ url_for('blog.index') }}" class="brand-link">
+                <span class="brand-icon">⚡</span>
+                <span class="brand-title">SecDemo Blog</span>
+            </a>
+            <nav class="nav-links">
+                <a href="{{ url_for('blog.index') }}" class="nav-item">Posts</a>
+                <a href="{{ url_for('lab.guide') }}" class="nav-item nav-lab-link">Lab Guide</a>
+                {% if current_user %}
+                <span class="nav-item user-badge">@{{ current_user.username }}</span>
+                <form action="{{ url_for('auth.logout') }}" method="POST" class="inline-form">
+                    <button type="submit" class="nav-item btn-link">Logout</button>
+                </form>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="nav-item">Login</a>
+                <a href="{{ url_for('auth.register') }}" class="nav-item btn-primary-sm">Register</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Floating Security Toggle Widget -->
+    <aside class="security-toggle-widget" id="securityToggleWidget" aria-label="Security Mode Switcher">
+        <form action="{{ url_for('security_mode.toggle') }}" method="POST" id="securityToggleForm">
+            <input type="hidden" name="mode" value="{{ 'vulnerable' if is_secure else 'secure' }}">
+            <button type="submit" class="toggle-button {{ 'secure' if is_secure else 'vulnerable' }}"
+                title="Click to toggle security mode">
+                <span class="status-indicator"></span>
+                <span class="toggle-text">
+                    {% if is_secure %}
+                    <strong class="mode-label">Secure Mode</strong>
+                    <span class="mode-sub">Countermeasures ON</span>
+                    {% else %}
+                    <strong class="mode-label">Vulnerable Mode</strong>
+                    <span class="mode-sub">Defenses OFF</span>
+                    {% endif %}
+                </span>
+            </button>
+        </form>
+    </aside>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

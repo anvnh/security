@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Posts — SecDemo Blog{% endblock %}
+
+{% block content %}
+<div class="blog-header">
+    <div class="search-section">
+        <h1>Articles & Dispatches</h1>
+        <p class="subtitle">Search posts by keyword or author. (Demonstration target for SQLi Data Exfiltration)</p>
+
+        <form action="{{ url_for('blog.index') }}" method="GET" class="search-form">
+            <div class="search-input-group">
+                <input 
+                    type="text" 
+                    name="q" 
+                    value="{{ query or '' }}" 
+                    placeholder="Search posts (e.g. SQL, Defending)..." 
+                    class="form-control search-input"
+                    autocomplete="off"
+                >
+                <button type="submit" class="btn btn-primary">Search</button>
+                {% if query %}
+                    <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if error_message %}
+            <div class="alert alert-danger error-leak-box">
+                <strong>Database Error:</strong>
+                <code>{{ error_message }}</code>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="posts-list">
+    {% if posts %}
+        {% for post in posts %}
+            <article class="post-card">
+                <header class="post-card-header">
+                    <h2><a href="{{ url_for('blog.post_detail', post_id=post.id) }}">{{ post.title }}</a></h2>
+                    <div class="post-meta">
+                        <span>Author: <strong>{{ post.username }}</strong></span>
+                        <span>•</span>
+                        <span>Published: {{ post.created_at }}</span>
+                    </div>
+                </header>
+                <div class="post-card-body">
+                    <p>{{ post.content[:240] }}{% if post.content|length > 240 %}...{% endif %}</p>
+                </div>
+                <footer class="post-card-footer">
+                    <a href="{{ url_for('blog.post_detail', post_id=post.id) }}" class="read-more-link">Read article & comments →</a>
+                </footer>
+            </article>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>No posts matched your search query{% if query %} "<code>{{ query }}</code>"{% endif %}.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
