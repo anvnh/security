@@ -4,47 +4,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Web Security Laboratory{% endblock %}</title>
+    <title>{% block title %}Bblog{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 
 <body>
     <header class="site-header">
-        <div class="container nav-container">
-            <a href="{{ url_for('blog.index') }}" class="brand-link">
-                <span class="brand-title">Blog</span>
-            </a>
+        <div class="header-inner">
+            <div class="header-left">
+                <button type="button" class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Toggle navigation"
+                    aria-expanded="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                        stroke-linecap="round" aria-hidden="true">
+                        <line x1="4" y1="6" x2="20" y2="6"></line>
+                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                        <line x1="4" y1="18" x2="20" y2="18"></line>
+                    </svg>
+                </button>
+                <a href="{{ url_for('blog.index') }}" class="brand-link">
+                    <span class="brand-mark" aria-hidden="true">B</span>
+                    <span class="brand-title">Bblog</span>
+                </a>
+            </div>
             <nav class="nav-links">
-                <a href="{{ url_for('blog.index') }}" class="nav-item">Posts</a>
                 {% if current_user %}
-                <span class="nav-item user-badge">@{{ current_user.username }}</span>
+                <a href="{{ url_for('auth.profile') }}" class="nav-item user-badge">@{{ current_user.username }}</a>
                 <form action="{{ url_for('auth.logout') }}" method="POST" class="inline-form">
-                    <button type="submit" class="nav-item btn-link">Logout</button>
+                    <button type="submit" class="nav-item btn-link">Sign out</button>
                 </form>
                 {% else %}
-                <a href="{{ url_for('auth.login') }}" class="nav-item">Login</a>
-                <a href="{{ url_for('auth.register') }}" class="nav-item btn-primary-sm">Register</a>
+                <a href="{{ url_for('auth.login') }}" class="nav-item">Sign in</a>
+                <a href="{{ url_for('auth.register') }}" class="nav-item btn-primary-sm">Get started</a>
                 {% endif %}
             </nav>
         </div>
     </header>
 
-    <main class="container main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">
-                <span>{{ message }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
+    <div class="app-shell" id="appShell">
+        <aside class="app-sidebar" id="appSidebar" aria-label="Primary navigation">
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('blog.index') }}"
+                    class="sidebar-link {% if request.endpoint in ('blog.index', 'blog.post_detail') %}active{% endif %}">
+                    <svg class="sidebar-icon" width="22" height="22" viewBox="0 0 24 24"
+                        fill="{{ 'currentColor' if request.endpoint in ('blog.index', 'blog.post_detail') else 'none' }}"
+                        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1z"></path>
+                    </svg>
+                    <span>Home</span>
+                </a>
+                <a href="{{ url_for('auth.profile') }}"
+                    class="sidebar-link {% if request.endpoint == 'auth.profile' %}active{% endif %}">
+                    <svg class="sidebar-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M4 20c0-3.5 3.6-6 8-6s8 2.5 8 6"></path>
+                    </svg>
+                    <span>Profile</span>
+                </a>
+            </nav>
+            <div class="sidebar-divider"></div>
+        </aside>
 
-        {% block content %}{% endblock %}
-    </main>
+        <main class="main-content {% block main_class %}{% endblock %}">
+            <div class="{% block container_class %}container{% endblock %}">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}

@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} — Blog{% endblock %}
+{% block title %}{{ post.title }} — Bblog{% endblock %}
 
 {% block content %}
 <article class="single-post">
     <header class="post-header">
-        <a href="{{ url_for('blog.index') }}" class="back-link">← Back to all posts</a>
+        <a href="{{ url_for('blog.index') }}" class="back-link">← Back to stories</a>
         <h1>{{ post.title }}</h1>
-        <div class="post-meta">
-            <span>Author: <strong>{{ post.username }}</strong></span>
-            <span>•</span>
-            <span>Date: {{ post.created_at }}</span>
+        <div class="post-byline">
+            <span class="author-avatar author-avatar-lg" aria-hidden="true">{{ post.username[0]|upper }}</span>
+            <div class="post-byline-meta">
+                <span class="post-byline-author">{{ post.username }}</span>
+                <span class="post-byline-date">Published {{ post.created_at }}</span>
+            </div>
         </div>
     </header>
 
@@ -65,7 +67,10 @@
         {% for comment in comments %}
         <div class="comment-card">
             <div class="comment-header">
-                <strong>{{ comment.author_name }}</strong>
+                <span class="comment-author">
+                    <span class="author-avatar" aria-hidden="true">{{ comment.author_name[0]|upper }}</span>
+                    <strong>{{ comment.author_name }}</strong>
+                </span>
                 <span class="comment-date">{{ comment.created_at }}</span>
             </div>
             <div class="comment-content">

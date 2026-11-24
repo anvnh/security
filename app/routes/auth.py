@@ -9,6 +9,7 @@ from flask import (
     redirect,
     url_for,
     flash,
+    session,
 )
 from app.db import get_db
 from app.security import (
@@ -125,3 +126,40 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("blog.index"))
+
+
+@auth_bp.route("/profile")
+def profile():
+    """View the authenticated user's profile."""
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please sign in to view your profile.", "warning")
+        return redirect(url_for("auth.login", next=url_for("auth.profile")))
+
+    db = get_db()
+    user = db.execute(
+        "SELECT id, username, bio, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not user:
+        logout_user()
+        flash("Please sign in to view your profile.", "warning")
+        return redirect(url_for("auth.login", next=url_for("auth.profile")))
+
+    posts = db.execute(
+        "SELECT id, title, created_at FROM posts WHERE user_id = ? ORDER BY created_at DESC",
+        (user["id"],),
+    ).fetchall()
+    comments = db.execute(
+        "SELECT c.id, c.post_id, c.content, c.created_at, p.title AS post_title "
+        "FROM comments c JOIN posts p ON c.post_id = p.id "
+        "WHERE c.user_id = ? ORDER BY c.created_at DESC",
+        (user["id"],),
+    ).fetchall()
+
+    return render_template(
+        "auth/profile.html",
+        user=user,
+        posts=posts,
+        comments=comments,
+    )

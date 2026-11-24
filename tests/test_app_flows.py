@@ -181,3 +181,26 @@ def test_post_markdown_rendering(blog_client):
     assert b"<div class=\"code-block\"><pre><code class=\"language-python\">" in res.data
     assert b"<li>Cache-Aside" in res.data
     assert b"<strong>" in res.data
+
+
+def test_sidebar_and_profile_flow(blog_client):
+    """Left sidebar exposes Home and Profile, right rail shows Popular Stories, and /profile requires auth."""
+    home_res = blog_client.get("/")
+    assert home_res.status_code == 200
+    assert b"Home" in home_res.data
+    assert b"Profile" in home_res.data
+    assert b"Popular Stories" in home_res.data
+    assert b"Recommended Topics" in home_res.data
+    assert b"Featured Writers" in home_res.data
+
+    # Unauthenticated access to /profile redirects to /login
+    unauth_profile = blog_client.get("/profile", follow_redirects=False)
+    assert unauth_profile.status_code == 302
+    assert "/login" in unauth_profile.headers["Location"]
+
+    # Sign in as alice and view profile
+    blog_client.post("/login", data={"username": "alice", "password": "alice123"})
+    profile_res = blog_client.get("/profile")
+    assert profile_res.status_code == 200
+    assert b"@alice" in profile_res.data
+    assert b"Systems engineer focused on networking protocols" in profile_res.data

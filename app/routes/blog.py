@@ -139,6 +139,36 @@ def index():
             (PER_PAGE, offset),
         ).fetchall()
 
+    popular_posts = db.execute(
+        "SELECT p.id, p.title, p.created_at, u.username, COUNT(c.id) AS comment_count "
+        "FROM posts p "
+        "JOIN users u ON p.user_id = u.id "
+        "LEFT JOIN comments c ON c.post_id = p.id "
+        "GROUP BY p.id "
+        "ORDER BY comment_count DESC, p.created_at DESC "
+        "LIMIT 4"
+    ).fetchall()
+
+    featured_authors = db.execute(
+        "SELECT u.username, u.bio, COUNT(p.id) AS post_count "
+        "FROM users u "
+        "JOIN posts p ON p.user_id = u.id "
+        "GROUP BY u.id "
+        "ORDER BY post_count DESC, u.id ASC "
+        "LIMIT 3"
+    ).fetchall()
+
+    recommended_topics = [
+        "Distributed Systems",
+        "Rust",
+        "SQLite",
+        "Python",
+        "CSS",
+        "Caching",
+        "WebAssembly",
+        "HTTP/3",
+    ]
+
     return render_template(
         "blog/index.html",
         posts=posts,
@@ -147,6 +177,9 @@ def index():
         total_pages=total_pages,
         total_posts=total_posts,
         error_message=error_message,
+        popular_posts=popular_posts,
+        featured_authors=featured_authors,
+        recommended_topics=recommended_topics,
     )
 
 
