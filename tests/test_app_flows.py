@@ -34,24 +34,94 @@ def test_user_registration_and_login_flow(client):
     assert b"Logged in successfully" in login_res.data
 
 
+def test_unauthenticated_post_view_hides_full_content_and_blocks_comments(client):
+    """Unauthenticated visitors see a partial preview and cannot post comments."""
+    res = client.get("/posts/16")
+    assert res.status_code == 200
+    # Intro preview is shown
+    assert b"Phil Karlton" in res.data
+    # Later article sections are hidden on the server side
+    assert b"Surrogate Keys and Cache Tagging" not in res.data
+    assert b"Architectural Checklist for Production Caching" not in res.data
+    # Login gate and comment login prompt are shown
+    assert b"Sign in to read the full article" in res.data
+    assert b"You must be signed in to post a comment." in res.data
+    assert b"/posts/16/comments" not in res.data
+
+    # Direct POST to comment endpoint without authentication is rejected
+    blocked = client.post(
+        "/posts/16/comments",
+        data={
+            "author_name": "AnonAttacker",
+            "content": "Unauthenticated comment attempt",
+        },
+        follow_redirects=False,
+    )
+    assert blocked.status_code == 302
+    assert "/login" in blocked.headers["Location"]
+
+    followed = client.post(
+        "/posts/16/comments",
+        data={"content": "Unauthenticated comment attempt"},
+        follow_redirects=True,
+    )
+    assert b"Please sign in to post a comment." in followed.data
+
+    verify_res = client.get("/posts/16")
+    assert b"Unauthenticated comment attempt" not in verify_res.data
+
+
 def test_post_view_and_comment_flow(client):
-    """Browsing posts and adding legitimate comments."""
+    """Authenticated users can read full posts and add legitimate comments."""
     res = client.get("/")
     assert res.status_code == 200
     assert b"Articles & Dispatches" in res.data
     assert b"Effective Cache Invalidation Strategies" in res.data
 
-    # Post a legitimate comment
+    # Sign in as alice with next redirect back to post 1
+    login_res = client.post(
+        "/login",
+        data={
+            "username": "alice",
+            "password": "alice123",
+            "next": "/posts/1",
+        },
+        follow_redirects=True,
+    )
+    assert login_res.status_code == 200
+    assert b"Architectural Checklist for Production Readiness" in login_res.data
+    assert b"Sign in to read the full article" not in login_res.data
+    assert b"Commenting as" in login_res.data
+
+    # Post a legitimate comment (author_name spoofing is ignored; uses authenticated user)
     post_comment = client.post(
         "/posts/1/comments",
         data={
-            "author_name": "Reviewer",
+            "author_name": "SpoofedName",
             "content": "This is a legitimate comment analyzing defenses.",
         },
         follow_redirects=True,
     )
     assert post_comment.status_code == 200
     assert b"This is a legitimate comment analyzing defenses." in post_comment.data
+    assert b"SpoofedName" not in post_comment.data
+
+
+def test_login_ignores_unsafe_external_next_redirect(client):
+    """External or protocol-relative next URLs fall back to home page."""
+    for unsafe_next in ("https://evil.example/phish", "//evil.example/phish", "/\\evil.example"):
+        res = client.post(
+            "/login",
+            data={
+                "username": "alice",
+                "password": "alice123",
+                "next": unsafe_next,
+            },
+            follow_redirects=False,
+        )
+        assert res.status_code == 302
+        assert res.headers["Location"].endswith("/")
+        client.post("/logout")
 
 
 def test_blog_pagination_flow(client):
@@ -101,7 +171,8 @@ def test_cli_commands(runner):
 
 
 def test_post_markdown_rendering(client):
-    """Verify blog post content renders Markdown into semantic HTML."""
+    """Verify authenticated users see full blog post Markdown rendered into semantic HTML."""
+    client.post("/login", data={"username": "alice", "password": "alice123"})
     res = client.get("/posts/16")
     assert res.status_code == 200
     assert b"<h3>1. Fundamental Caching Topologies</h3>" in res.data

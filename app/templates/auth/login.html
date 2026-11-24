@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Sign In — SecDemo Blog{% endblock %}
+{% block title %}Sign In — Blog{% endblock %}
 
 {% block content %}
 <div class="auth-card-container">
@@ -10,6 +10,9 @@
             Bypass)</p>
 
         <form action="{{ url_for('auth.login') }}" method="POST" class="auth-form">
+            {% if next_url %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" class="form-control">
@@ -24,7 +27,9 @@
         </form>
 
         <div class="auth-footer">
-            <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></p>
+            <p>Don't have an account? <a
+                    href="{{ url_for('auth.register', next=next_url) if next_url else url_for('auth.register') }}">Register
+                    here</a></p>
             <div class="demo-accounts-hint">
                 <small>Demo accounts: <code>admin</code> (admin123), <code>alice</code> (alice123), <code>bob</code>
                     (bob123)</small>

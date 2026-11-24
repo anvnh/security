@@ -3,18 +3,25 @@
 from app.security import MODE_SECURE, MODE_VULNERABLE
 
 
+def _login_alice(client):
+    """Authenticate as demo user alice while preserving current session security mode."""
+    client.post(
+        "/login",
+        data={"username": "alice", "password": "alice123"},
+        follow_redirects=True,
+    )
+
+
 def test_xss_in_secure_mode(client):
     """In Secure Mode, user comment content is safely escaped by Jinja2."""
     with client.session_transaction() as sess:
         sess["security_mode"] = MODE_SECURE
+    _login_alice(client)
 
     payload = "<script>alert('SECURE_TEST_XSS')</script>"
     client.post(
         "/posts/1/comments",
-        data={
-            "author_name": "Attacker",
-            "content": payload,
-        },
+        data={"content": payload},
         follow_redirects=True,
     )
 
@@ -30,14 +37,12 @@ def test_xss_in_vulnerable_mode(client):
     """In Vulnerable Mode, user comment content is rendered unescaped (| safe)."""
     with client.session_transaction() as sess:
         sess["security_mode"] = MODE_VULNERABLE
+    _login_alice(client)
 
     payload = "<script>alert('VULN_TEST_XSS')</script>"
     client.post(
         "/posts/1/comments",
-        data={
-            "author_name": "Attacker",
-            "content": payload,
-        },
+        data={"content": payload},
         follow_redirects=True,
     )
 
@@ -101,10 +106,11 @@ def test_fake_login_xss_behavior_in_both_modes(client):
     # 1. Vulnerable Mode
     with client.session_transaction() as sess:
         sess["security_mode"] = MODE_VULNERABLE
+    _login_alice(client)
 
     client.post(
         "/posts/2/comments",
-        data={"author_name": "Phisher", "content": phish_payload},
+        data={"content": phish_payload},
         follow_redirects=True,
     )
 

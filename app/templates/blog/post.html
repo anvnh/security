@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} — SecDemo Blog{% endblock %}
+{% block title %}{{ post.title }} — Blog{% endblock %}
 
 {% block content %}
 <article class="single-post">
@@ -14,24 +14,31 @@
         </div>
     </header>
 
-    <div class="post-body markdown-body">
-        {{ post.content | markdown }}
+    <div class="post-body markdown-body {% if is_truncated %}post-preview-truncated{% endif %}">
+        {{ display_content | markdown }}
     </div>
+
+    {% if not current_user %}
+    <div class="post-gate">
+        <div class="post-gate-icon" aria-hidden="true">🔒</div>
+        <h3>Sign in to read the full article</h3>
+        <p>You are viewing a preview of this article. Sign in or create an account to read the complete post and join
+            the discussion.</p>
+        <div class="gate-actions">
+            <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-primary">Sign In to Continue</a>
+            <a href="{{ url_for('auth.register', next=request.path) }}" class="btn btn-secondary">Create Account</a>
+        </div>
+    </div>
+    {% endif %}
 </article>
 
 <section class="comments-section" id="comments">
     <h2>Comments ({{ comments|length }})</h2>
     <p class="subtitle">Join the discussion and share your thoughts or engineering experience below.</p>
 
+    {% if current_user %}
     <form action="{{ url_for('blog.add_comment', post_id=post.id) }}" method="POST" class="comment-form">
-        {% if not current_user %}
-        <div class="form-group">
-            <label for="author_name">Your Name:</label>
-            <input type="text" id="author_name" name="author_name" placeholder="Guest" class="form-control">
-        </div>
-        {% else %}
         <p class="comment-as">Commenting as <strong>{{ current_user.username }}</strong></p>
-        {% endif %}
 
         <div class="form-group">
             <label for="content">Comment:</label>
@@ -41,6 +48,17 @@
 
         <button type="submit" class="btn btn-primary">Post Comment</button>
     </form>
+    {% else %}
+    <div class="comment-login-prompt">
+        <p>You must be signed in to post a comment.</p>
+        <div class="gate-actions">
+            <a href="{{ url_for('auth.login', next=request.path + '#comments') }}" class="btn btn-primary">Sign In to
+                Comment</a>
+            <a href="{{ url_for('auth.register', next=request.path + '#comments') }}"
+                class="btn btn-secondary">Register</a>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="comments-list">
         {% if comments %}

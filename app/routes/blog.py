@@ -20,6 +20,65 @@ blog_bp = Blueprint("blog", __name__)
 PER_PAGE = 4
 
 
+def _split_markdown_blocks(content: str) -> list[str]:
+    """Split Markdown content into logical blocks without breaking fenced code blocks."""
+    lines = content.replace("\r\n", "\n").split("\n")
+    blocks = []
+    current = []
+    in_code_fence = False
+
+    for line in lines:
+        if line.startswith("```"):
+            in_code_fence = not in_code_fence
+            current.append(line)
+            continue
+
+        if not in_code_fence and not line.strip():
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+        else:
+            current.append(line)
+
+    if current:
+        blocks.append("\n".join(current))
+
+    return blocks
+
+
+def build_post_preview(content: str) -> tuple[str, bool]:
+    """Return a partial preview of post content and whether content was truncated."""
+    if not content:
+        return "", False
+
+    blocks = _split_markdown_blocks(content)
+    if len(blocks) >= 2:
+        preview_count = min(2, len(blocks) // 2)
+        return "\n\n".join(blocks[:preview_count]), True
+
+    stripped = content.strip()
+    if len(stripped) <= 20:
+        return stripped, False
+
+    cutoff = min(300, max(1, len(stripped) // 2))
+    snippet = stripped[:cutoff]
+    last_space = snippet.rfind(" ")
+    if last_space > cutoff // 2:
+        snippet = snippet[:last_space]
+    return snippet.rstrip() + "...", True
+
+
+def _get_authenticated_user(db):
+    """Return the authenticated user row if session user_id is valid, else None."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    return db.execute(
+        "SELECT id, username FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+
+
 @blog_bp.route("/")
 def index():
     """List blog posts with pagination and search filter demonstrating SQL Injection Data Exfiltration."""
@@ -93,7 +152,7 @@ def index():
 
 @blog_bp.route("/posts/<int:post_id>")
 def post_detail(post_id):
-    """View a single post and its comments (XSS target)."""
+    """View a single post (partial preview when unauthenticated) and its comments (XSS target)."""
     db = get_db()
     post = db.execute(
         "SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id = ?",
@@ -103,41 +162,50 @@ def post_detail(post_id):
     if not post:
         abort(404)
 
+    authenticated_user = _get_authenticated_user(db)
+    if authenticated_user:
+        display_content = post["content"]
+        is_truncated = False
+    else:
+        display_content, is_truncated = build_post_preview(post["content"])
+
     comments = db.execute(
         "SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC",
         (post_id,),
     ).fetchall()
 
-    return render_template("blog/post.html", post=post, comments=comments)
+    return render_template(
+        "blog/post.html",
+        post=post,
+        display_content=display_content,
+        is_truncated=is_truncated,
+        comments=comments,
+    )
 
 
 @blog_bp.route("/posts/<int:post_id>/comments", methods=["POST"])
 def add_comment(post_id):
-    """Add a new comment demonstrating XSS storage and rendering."""
+    """Add a new comment (authenticated users only) demonstrating XSS storage and rendering."""
     db = get_db()
     post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
     if not post:
         abort(404)
 
-    user_id = session.get("user_id")
-    author_name = request.form.get("author_name", "").strip()
+    authenticated_user = _get_authenticated_user(db)
+    if not authenticated_user:
+        flash("Please sign in to post a comment.", "warning")
+        return redirect(
+            url_for("auth.login", next=url_for("blog.post_detail", post_id=post_id))
+        )
+
     content = request.form.get("content", "").strip()
-
-    if user_id:
-        user = db.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
-        if user:
-            author_name = user["username"]
-
-    if not author_name:
-        author_name = "Anonymous"
-
     if not content:
         flash("Comment content cannot be empty.", "danger")
         return redirect(url_for("blog.post_detail", post_id=post_id))
 
     db.execute(
         "INSERT INTO comments (post_id, user_id, author_name, content) VALUES (?, ?, ?, ?)",
-        (post_id, user_id, author_name, content),
+        (post_id, authenticated_user["id"], authenticated_user["username"], content),
     )
     db.commit()
 
