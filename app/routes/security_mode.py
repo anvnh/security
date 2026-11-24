@@ -36,4 +36,4 @@ def toggle():
         f"Security mode switched to: {'SECURE' if new_mode == MODE_SECURE else 'VULNERABLE'}",
         "info" if new_mode == MODE_SECURE else "warning",
     )
-    return redirect(request.referrer or url_for("blog.index"))
+    return redirect(url_for("lab.guide"))

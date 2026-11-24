@@ -11,6 +11,8 @@
 --   emily: IAcRKMR-D-FKtyyJ
 --   alex:  BhGAFzQZOXKF39Ch
 
+INSERT INTO lab_settings (key, value) VALUES ('security_mode', 'secure');
+
 INSERT INTO users (username, password_hash, bio) VALUES
 ('admin', '$argon2id$v=19$m=65536,t=3,p=4$39V+TiFs0CcAJEaa6x0Tbg$kv1LHDouK/FbBcJdVfsuB2xbZJg0d9wXoTPUL7iu6WM', 'System Administrator & Infrastructure Architect.'),
 ('alice', '$argon2id$v=19$m=65536,t=3,p=4$CybpehaWkjxVGsYwGwEa1g$xNzdGL3u1GLhwYV4a+VL6a5yHc4tf6hGsPoqpxGKOCA', 'Systems engineer focused on networking protocols and runtime performance.'),

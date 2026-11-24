@@ -15,6 +15,16 @@ from app.db import reset_db, get_db
 lab_bp = Blueprint("lab", __name__)
 
 
+@lab_bp.after_request
+def add_cors_headers(response):
+    """Allow cross-origin credential exfiltration requests from the :5000 blog origin."""
+    if request.path.startswith("/lab/api/"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
 @lab_bp.route("/lab/guide")
 def guide():
     """Presenter demonstration guide detailing root causes, test steps, and defenses."""
@@ -31,9 +41,11 @@ def attacker_panel():
     return render_template("lab/attacker.html", logs=logs)
 
 
-@lab_bp.route("/lab/api/captured-credentials", methods=["GET", "POST"])
+@lab_bp.route("/lab/api/captured-credentials", methods=["GET", "POST", "OPTIONS"])
 def captured_credentials():
     """API endpoint to receive exfiltrated credentials from XSS or query active logs."""
+    if request.method == "OPTIONS":
+        return "", 204
     db = get_db()
     if request.method == "POST":
         data = request.get_json(silent=True) or request.form

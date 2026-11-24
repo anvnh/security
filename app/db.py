@@ -22,7 +22,7 @@ def get_db(db_path=None):
         else:
             conn_target = target_path
 
-        g.db = sqlite3.connect(conn_target)
+        g.db = sqlite3.connect(conn_target, timeout=10.0)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON;")
     return g.db

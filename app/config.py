@@ -16,6 +16,8 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
     DATABASE = DATABASE_PATH
     SESSION_COOKIE_HTTPONLY = True
+    BLOG_PORT = int(os.environ.get("BLOG_PORT", 5000))
+    LAB_PORT = int(os.environ.get("LAB_PORT", 5001))
 
 
 class TestConfig(Config):

@@ -8,14 +8,13 @@ from app.db import execute_sql_file
 
 
 @pytest.fixture
-def app(tmp_path):
-    """Create and configure a clean test application with a temporary database."""
+def db_config(tmp_path):
+    """Create and seed a shared temporary SQLite database configuration."""
     db_file = tmp_path / "test.db"
 
     class CustomTestConfig(TestConfig):
         DATABASE = db_file
 
-    # Seed the temporary database
     conn = sqlite3.connect(str(db_file))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
@@ -24,14 +23,43 @@ def app(tmp_path):
     conn.commit()
     conn.close()
 
-    app_instance = create_app(CustomTestConfig)
-    yield app_instance
+    return CustomTestConfig
+
+
+@pytest.fixture
+def app(db_config):
+    """Combined application instance for CLI tests."""
+    return create_app(db_config, role="full")
+
+
+@pytest.fixture
+def blog_app(db_config):
+    """User-facing blog application (:5000 role)."""
+    return create_app(db_config, role="blog")
+
+
+@pytest.fixture
+def lab_app(db_config):
+    """Lab guide and attacker C2 application (:5001 role)."""
+    return create_app(db_config, role="lab")
 
 
 @pytest.fixture
 def client(app):
-    """A test client for the app."""
+    """A test client for the combined app."""
     return app.test_client()
+
+
+@pytest.fixture
+def blog_client(blog_app):
+    """A test client for the pure user blog (:5000)."""
+    return blog_app.test_client()
+
+
+@pytest.fixture
+def lab_client(lab_app):
+    """A test client for the lab guide and attacker server (:5001)."""
+    return lab_app.test_client()
 
 
 @pytest.fixture

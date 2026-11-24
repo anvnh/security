@@ -1,9 +1,15 @@
 -- Database schema for minimal web security lab
 
+DROP TABLE IF EXISTS lab_settings;
 DROP TABLE IF EXISTS captured_credentials;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS users;
+
+CREATE TABLE lab_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

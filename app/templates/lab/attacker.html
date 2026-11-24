@@ -23,7 +23,7 @@
                 <span class="c2-status-text">LISTENING on /lab/api/captured-credentials</span>
             </div>
             <div class="c2-links">
-                <a href="{{ url_for('blog.index') }}" target="_blank" class="c2-btn">Target Website ↗</a>
+                <a href="{{ blog_url('/') }}" target="_blank" class="c2-btn">Target Website ↗</a>
                 <a href="{{ url_for('lab.guide') }}" target="_blank" class="c2-btn">Lab Guide ↗</a>
             </div>
         </div>
@@ -36,9 +36,9 @@
                 <pre class="terminal-ascii">
 ====================================================================================================
 [+] SIMULATED EXTERNAL ADVERSARY LISTENER & CREDENTIAL HARVESTER
-[+] Target Host : http://localhost:5000/ (Blog)
+[+] Target Host : {{ blog_url('/') }} (Blog)
 [+] Attack Vector: Stored XSS &rarr; In-Session Phishing Overlay (/posts/&lt;id&gt;)
-[+] Listener URL : POST /lab/api/captured-credentials
+[+] Listener URL : POST http://localhost:{{ config.LAB_PORT }}/lab/api/captured-credentials
 ====================================================================================================</pre>
             </div>
 

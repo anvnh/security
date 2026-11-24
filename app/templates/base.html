@@ -46,26 +46,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Floating Security Toggle Widget -->
-    <aside class="security-toggle-widget" id="securityToggleWidget" aria-label="Security Mode Switcher">
-        <form action="{{ url_for('security_mode.toggle') }}" method="POST" id="securityToggleForm">
-            <input type="hidden" name="mode" value="{{ 'vulnerable' if is_secure else 'secure' }}">
-            <button type="submit" class="toggle-button {{ 'secure' if is_secure else 'vulnerable' }}"
-                title="Click to toggle security mode">
-                <span class="status-indicator"></span>
-                <span class="toggle-text">
-                    {% if is_secure %}
-                    <strong class="mode-label">Secure Mode</strong>
-                    <span class="mode-sub">Countermeasures ON</span>
-                    {% else %}
-                    <strong class="mode-label">Vulnerable Mode</strong>
-                    <span class="mode-sub">Defenses OFF</span>
-                    {% endif %}
-                </span>
-            </button>
-        </form>
-    </aside>
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -1,84 +1,99 @@
-"""Tests for security mode management, persistence, and session isolation."""
+"""Tests for global SQLite security mode management and :5000 / :5001 server separation."""
 
-from flask import session
-from app.security import MODE_SECURE, MODE_VULNERABLE
-
-
-def test_default_security_mode_is_secure(client):
-    """Application defaults to Secure Mode for all new sessions."""
-    res = client.get("/")
-    assert res.status_code == 200
-    assert b"Secure Mode" in res.data
-    assert b"Vulnerable Mode" not in res.data
+from app.security import MODE_SECURE, MODE_VULNERABLE, get_security_mode
 
 
-def test_toggle_security_mode_endpoint(client):
-    """Security mode toggle switches state between Secure and Vulnerable."""
-    # Switch to vulnerable mode
-    res = client.post(
+def test_default_security_mode_is_secure(lab_client, blog_app):
+    """Application defaults to Secure Mode and blog pages do not expose the toggle widget."""
+    lab_res = lab_client.get("/lab/guide")
+    assert lab_res.status_code == 200
+    assert b"Secure Mode (ON)" in lab_res.data
+
+    blog_res = blog_app.test_client().get("/")
+    assert blog_res.status_code == 200
+    assert b"securityToggleWidget" not in blog_res.data
+    assert b"/security/toggle" not in blog_res.data
+
+    with blog_app.app_context():
+        assert get_security_mode() == MODE_SECURE
+
+
+def test_blog_server_does_not_expose_lab_or_toggle(blog_client):
+    """The pure user blog (:5000) does not expose lab routes or security toggle."""
+    assert blog_client.get("/lab/guide").status_code == 404
+    assert blog_client.get("/lab/attacker").status_code == 404
+    assert blog_client.post("/security/toggle", data={"mode": MODE_VULNERABLE}).status_code == 404
+
+
+def test_only_guide_has_security_toggle_not_attacker(lab_client):
+    """On :5001, only /lab/guide has the toggle; /lab/attacker has no toggle controls."""
+    root_res = lab_client.get("/", follow_redirects=False)
+    assert root_res.status_code == 302
+    assert "/lab/guide" in root_res.headers["Location"]
+
+    guide_res = lab_client.get("/lab/guide")
+    assert guide_res.status_code == 200
+    assert b"/security/toggle" in guide_res.data
+    assert b"Secure Mode (ON)" in guide_res.data
+
+    attacker_res = lab_client.get("/lab/attacker")
+    assert attacker_res.status_code == 200
+    assert b"/security/toggle" not in attacker_res.data
+    assert b"Secure Mode" not in attacker_res.data
+    assert b"Vulnerable Mode" not in attacker_res.data
+
+
+def test_global_security_mode_syncs_across_clients(lab_client, blog_app):
+    """Toggling mode on :5001/lab/guide syncs globally to all :5000 clients."""
+    toggle_vuln = lab_client.post(
         "/security/toggle",
         data={"mode": MODE_VULNERABLE},
         follow_redirects=True,
     )
-    assert res.status_code == 200
-    assert b"Vulnerable Mode" in res.data
+    assert toggle_vuln.status_code == 200
+    assert b"Secure Mode (OFF)" in toggle_vuln.data
 
-    # Switch back to secure mode
-    res = client.post(
+    with blog_app.app_context():
+        assert get_security_mode() == MODE_VULNERABLE
+
+    # Independent :5000 clients immediately observe Vulnerable Mode
+    client_a = blog_app.test_client()
+    client_b = blog_app.test_client()
+    payload = "' UNION SELECT id, username, password_hash, bio, created_at, 'admin' FROM users --"
+    assert b"$argon2id$" in client_a.get(f"/?q={payload}").data
+    assert b"$argon2id$" in client_b.get(f"/?q={payload}").data
+
+    # Switch back to Secure Mode on :5001
+    toggle_sec = lab_client.post(
         "/security/toggle",
         data={"mode": MODE_SECURE},
         follow_redirects=True,
     )
-    assert res.status_code == 200
-    assert b"Secure Mode" in res.data
+    assert toggle_sec.status_code == 200
+    assert b"Secure Mode (ON)" in toggle_sec.data
+
+    with blog_app.app_context():
+        assert get_security_mode() == MODE_SECURE
+
+    assert b"$argon2id$" not in client_a.get(f"/?q={payload}").data
 
 
-def test_security_mode_preserved_across_login_and_logout(client):
-    """Switching mode must persist across login and logout authentication transitions."""
-    # Switch to Vulnerable Mode
-    client.post(
+def test_security_mode_preserved_across_login_and_logout(lab_client, blog_client, blog_app):
+    """Global security mode persists across login and logout transitions on :5000."""
+    lab_client.post(
         "/security/toggle",
         data={"mode": MODE_VULNERABLE},
         follow_redirects=True,
     )
 
-    # Log in as alice
-    client.post(
+    blog_client.post(
         "/login",
         data={"username": "alice", "password": "alice123"},
         follow_redirects=True,
     )
+    with blog_app.app_context():
+        assert get_security_mode() == MODE_VULNERABLE
 
-    # Verify session remains in Vulnerable Mode after login
-    with client.session_transaction() as sess:
-        assert sess.get("security_mode") == MODE_VULNERABLE
-        assert sess.get("user_id") is not None
-
-    # Log out
-    client.post("/logout", follow_redirects=True)
-
-    # Verify session remains in Vulnerable Mode after logout
-    with client.session_transaction() as sess:
-        assert sess.get("security_mode") == MODE_VULNERABLE
-        assert sess.get("user_id") is None
-
-
-def test_security_mode_session_isolation(app):
-    """Different client sessions maintain completely independent security modes."""
-    client_a = app.test_client()
-    client_b = app.test_client()
-
-    # Client A toggles to vulnerable mode
-    client_a.post(
-        "/security/toggle",
-        data={"mode": MODE_VULNERABLE},
-        follow_redirects=True,
-    )
-
-    with client_a.session_transaction() as sess_a:
-        assert sess_a.get("security_mode") == MODE_VULNERABLE
-
-    # Client B should still default to secure mode
-    client_b.get("/")
-    with client_b.session_transaction() as sess_b:
-        assert sess_b.get("security_mode") == MODE_SECURE
+    blog_client.post("/logout", follow_redirects=True)
+    with blog_app.app_context():
+        assert get_security_mode() == MODE_VULNERABLE

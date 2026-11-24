@@ -110,24 +110,27 @@ python init_db.py init
 python run.py
 ```
 
-The application will start on `http://127.0.0.1:5000/`.
+The application runs two local servers simultaneously:
+- **User Blog (`http://127.0.0.1:5000/`)**: Clean user-facing blog without lab controls or security toggle UI.
+- **Lab Guide (`http://127.0.0.1:5001/lab/guide`)**: Presenter demonstration guide with the global security mode toggle and lab reset control.
+- **Attacker C2 Panel (`http://127.0.0.1:5001/lab/attacker`)**: Simulated credential harvesting listener (cannot toggle security mode).
 
 ---
 
 ## Security Mode Toggle
 
-The application features a floating toggle in the bottom-right corner of every page:
-- **Default State**: **Secure Mode** (green badge).
-- **Toggle**: Click the badge at any time to switch between **Secure Mode** and **Vulnerable Mode** without restarting the application.
-- **Session-Scoped**: Each browser session maintains its own security mode independently.
-- **Persistence**: Selected mode is preserved across login and logout authentication transitions.
+The security mode toggle is exclusively available on the presenter guide (`http://127.0.0.1:5001/lab/guide`):
+- **Default State**: **Secure Mode** (`ON`).
+- **Toggle**: Switch between **Secure Mode** and **Vulnerable Mode** without restarting the servers.
+- **Global SQLite State**: Mode is stored in SQLite (`lab_settings`) so changes made on `:5001/lab/guide` immediately apply across all clients visiting `:5000`.
+- **Isolated Controls**: Neither `:5000` (User Blog) nor `:5001/lab/attacker` exposes the security toggle.
 - **Password Hashing**: Argon2id password hashing remains active in both modes.
 
 ---
 
-## Demonstration Guide (`/lab/guide`)
+## Demonstration Guide (`http://127.0.0.1:5001/lab/guide`)
 
-Visit `http://127.0.0.1:5000/lab/guide` for full presenter instructions, copyable payloads, and expected outputs.
+Visit `http://127.0.0.1:5001/lab/guide` for full presenter instructions, copyable payloads, and expected outputs.
 
 ### Pre-seeded Accounts
 | Username | Password | Role |

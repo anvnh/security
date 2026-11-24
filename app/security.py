@@ -1,8 +1,10 @@
-"""Security mode management and password hashing."""
+"""Global security mode management (SQLite-backed) and password hashing."""
 
+import sqlite3
 from flask import session
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+from app.db import get_db
 
 MODE_SECURE = "secure"
 MODE_VULNERABLE = "vulnerable"
@@ -13,29 +15,40 @@ _hasher = PasswordHasher()
 
 
 def get_security_mode() -> str:
-    """Return current security mode for the session, defaulting to SECURE."""
-    mode = session.get("security_mode")
-    if mode not in (MODE_SECURE, MODE_VULNERABLE):
-        mode = DEFAULT_MODE
-        session["security_mode"] = mode
-    return mode
+    """Return global security mode from SQLite, defaulting to SECURE."""
+    try:
+        db = get_db()
+        row = db.execute(
+            "SELECT value FROM lab_settings WHERE key = 'security_mode'"
+        ).fetchone()
+        if row and row["value"] in (MODE_SECURE, MODE_VULNERABLE):
+            return row["value"]
+    except sqlite3.OperationalError:
+        pass
+    return DEFAULT_MODE
 
 
 def set_security_mode(mode: str) -> str:
-    """Validate and update the security mode in the session."""
+    """Validate and persist global security mode in SQLite."""
     if mode not in (MODE_SECURE, MODE_VULNERABLE):
         raise ValueError(f"Invalid security mode: {mode}")
-    session["security_mode"] = mode
+    db = get_db()
+    db.execute(
+        "INSERT INTO lab_settings (key, value) VALUES ('security_mode', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (mode,),
+    )
+    db.commit()
     return mode
 
 
 def is_secure_mode() -> bool:
-    """Check if the current session is in Secure Mode."""
+    """Check if the application is currently in Secure Mode."""
     return get_security_mode() == MODE_SECURE
 
 
 def is_vulnerable_mode() -> bool:
-    """Check if the current session is in Vulnerable Mode."""
+    """Check if the application is currently in Vulnerable Mode."""
     return get_security_mode() == MODE_VULNERABLE
 
 
@@ -53,15 +66,11 @@ def verify_password(hash_value: str, password: str) -> bool:
 
 
 def login_user(user_id: int):
-    """Log in user while preserving security mode across auth transition."""
-    current_mode = get_security_mode()
+    """Log in user with a fresh session."""
     session.clear()
     session["user_id"] = user_id
-    session["security_mode"] = current_mode
 
 
 def logout_user():
-    """Log out user while preserving security mode across auth transition."""
-    current_mode = get_security_mode()
+    """Clear current user session."""
     session.clear()
-    session["security_mode"] = current_mode
