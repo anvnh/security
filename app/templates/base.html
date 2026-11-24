@@ -10,6 +10,7 @@
 </head>
 
 <body>
+    {% block shell %}
     <header class="site-header">
         <div class="header-inner">
             <div class="header-left">
@@ -86,6 +87,7 @@
             </div>
         </main>
     </div>
+    {% endblock %}
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}

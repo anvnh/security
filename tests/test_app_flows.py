@@ -199,6 +199,16 @@ def test_sidebar_and_profile_flow(blog_client):
     assert "/login" in unauth_profile.headers["Location"]
 
     # Sign in as alice and view profile
+    login_page = blog_client.get("/login")
+    assert login_page.status_code == 200
+    assert b"app-sidebar" not in login_page.data
+    assert b"auth-standalone" in login_page.data
+
+    register_page = blog_client.get("/register")
+    assert register_page.status_code == 200
+    assert b"app-sidebar" not in register_page.data
+    assert b"auth-standalone" in register_page.data
+
     blog_client.post("/login", data={"username": "alice", "password": "alice123"})
     profile_res = blog_client.get("/profile")
     assert profile_res.status_code == 200

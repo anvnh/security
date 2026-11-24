@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block shell %}
+<main class="auth-standalone">
+    <div class="auth-standalone-brand">
+        <a href="{{ url_for('blog.index') }}" class="brand-link">
+            <span class="brand-mark" aria-hidden="true">B</span>
+            <span class="brand-title">Bblog</span>
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages auth-flash">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+
+    <div class="auth-back-home">
+        <a href="{{ url_for('blog.index') }}">← Back to stories</a>
+    </div>
+</main>
+{% endblock %}
