@@ -9,121 +9,122 @@
 <div class="feed-layout">
     <div class="feed-main">
         <div class="feed-main-inner">
-        <div class="blog-header">
-            <div class="search-section">
-                <h1>Articles & Dispatches</h1>
-                <p class="subtitle">Explore engineering insights, systems architecture, and runtime performance from our
-                    team.</p>
+            <div class="blog-header">
+                <div class="search-section">
+                    <h1>Articles & Dispatches</h1>
+                    <p class="subtitle">Explore engineering insights, systems architecture, and runtime performance from
+                        our
+                        team.</p>
 
-                <form action="{{ url_for('blog.index') }}" method="GET" class="search-form">
-                    <div class="search-input-group">
-                        <input type="text" name="q" value="{{ query or '' }}"
-                            placeholder="Search articles by title or keyword..." class="form-control search-input"
-                            autocomplete="off">
-                        <button type="submit" class="btn btn-primary">Search</button>
-                        {% if query %}
-                        <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">Clear</a>
+                    <form action="{{ url_for('blog.index') }}" method="GET" class="search-form">
+                        <div class="search-input-group">
+                            <input type="text" name="q" value="{{ query or '' }}"
+                                placeholder="Search articles by title or keyword..." class="form-control search-input"
+                                autocomplete="off">
+                            <button type="submit" class="btn btn-primary">Search</button>
+                            {% if query %}
+                            <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">Clear</a>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    {% if query %}
+                    {# Reflected XSS injection point: in Vulnerable Mode, query is rendered unescaped.
+                    In Secure Mode, Jinja2 auto-escaping treats query as plain text.
+                    is_secure is injected globally by the context processor (same source as comment rendering). #}
+                    <p class="search-results-label">
+                        Showing results for:
+                        {% if not is_secure %}
+                        <strong>{{ query | safe }}</strong>
+                        {% else %}
+                        <strong>{{ query }}</strong>
                         {% endif %}
+                    </p>
+                    {% endif %}
+
+                    {% if error_message %}
+                    <div class="alert alert-danger error-leak-box">
+                        <strong>Database Error:</strong>
+                        <code>{{ error_message }}</code>
                     </div>
-                </form>
-
-                {% if query %}
-                {# Reflected XSS injection point: in Vulnerable Mode, query is rendered unescaped.
-                   In Secure Mode, Jinja2 auto-escaping treats query as plain text.
-                   is_secure is injected globally by the context processor (same source as comment rendering). #}
-                <p class="search-results-label">
-                    Showing results for:
-                    {% if not is_secure %}
-                    <strong>{{ query | safe }}</strong>
-                    {% else %}
-                    <strong>{{ query }}</strong>
                     {% endif %}
-                </p>
-                {% endif %}
-
-                {% if error_message %}
-                <div class="alert alert-danger error-leak-box">
-                    <strong>Database Error:</strong>
-                    <code>{{ error_message }}</code>
                 </div>
-                {% endif %}
             </div>
-        </div>
 
-        <div class="posts-list">
-            {% if posts %}
-            {% for post in posts %}
-            <article class="post-card">
-                <div class="post-author-row">
-                    <span class="author-avatar" aria-hidden="true">{{ (post.username or '?')[0]|upper }}</span>
-                    <span><strong>{{ post.username }}</strong></span>
-                    <span>·</span>
-                    <span>{{ post.created_at }}</span>
-                </div>
-                <header class="post-card-header">
-                    <h2><a href="{{ url_for('blog.post_detail', post_id=post.id) }}">{{ post.title }}</a></h2>
-                </header>
-                <div class="post-card-body">
-                    <p>{{ post.content[:240] }}{% if post.content|length > 240 %}...{% endif %}</p>
-                </div>
-                <footer class="post-card-footer">
-                    <a href="{{ url_for('blog.post_detail', post_id=post.id) }}" class="read-more-link">Read article
-                        &amp; comments →</a>
-                </footer>
-            </article>
-            {% endfor %}
-            {% else %}
-            <div class="empty-state">
-                <p>No posts matched your search query{% if query %} "<code>{{ query }}</code>"{% endif %}.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        {% if total_pages > 1 %}
-        <nav class="pagination-container" aria-label="Blog pagination">
-            <ul class="pagination">
-                {% if current_page > 1 %}
-                <li class="page-item">
-                    <a href="{{ url_for('blog.index', page=current_page - 1, q=query if query else None) }}"
-                        class="page-link" aria-label="Previous page">
-                        &larr; Previous
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">&larr; Previous</span>
-                </li>
-                {% endif %}
-
-                {% for p in range(1, total_pages + 1) %}
-                <li class="page-item {% if p == current_page %}active{% endif %}">
-                    {% if p == current_page %}
-                    <span class="page-link" aria-current="page">{{ p }}</span>
-                    {% else %}
-                    <a href="{{ url_for('blog.index', page=p, q=query if query else None) }}" class="page-link">
-                        {{ p }}
-                    </a>
-                    {% endif %}
-                </li>
+            <div class="posts-list">
+                {% if posts %}
+                {% for post in posts %}
+                <article class="post-card">
+                    <div class="post-author-row">
+                        <span class="author-avatar" aria-hidden="true">{{ (post.username or '?')[0]|upper }}</span>
+                        <span><strong>{{ post.username }}</strong></span>
+                        <span>·</span>
+                        <span>{{ post.created_at }}</span>
+                    </div>
+                    <header class="post-card-header">
+                        <h2><a href="{{ url_for('blog.post_detail', post_id=post.id) }}">{{ post.title }}</a></h2>
+                    </header>
+                    <div class="post-card-body">
+                        <p>{{ post.content[:240] }}{% if post.content|length > 240 %}...{% endif %}</p>
+                    </div>
+                    <footer class="post-card-footer">
+                        <a href="{{ url_for('blog.post_detail', post_id=post.id) }}" class="read-more-link">Read article
+                            &amp; comments →</a>
+                    </footer>
+                </article>
                 {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <p>No posts matched your search query{% if query %} "<code>{{ query }}</code>"{% endif %}.</p>
+                </div>
+                {% endif %}
+            </div>
 
-                {% if current_page < total_pages %} <li class="page-item">
-                    <a href="{{ url_for('blog.index', page=current_page + 1, q=query if query else None) }}"
-                        class="page-link" aria-label="Next page">
-                        Next &rarr;
-                    </a>
+            {% if total_pages > 1 %}
+            <nav class="pagination-container" aria-label="Blog pagination">
+                <ul class="pagination">
+                    {% if current_page > 1 %}
+                    <li class="page-item">
+                        <a href="{{ url_for('blog.index', page=current_page - 1, q=query if query else None) }}"
+                            class="page-link" aria-label="Previous page">
+                            &larr; Previous
+                        </a>
                     </li>
                     {% else %}
                     <li class="page-item disabled">
-                        <span class="page-link">Next &rarr;</span>
+                        <span class="page-link">&larr; Previous</span>
                     </li>
                     {% endif %}
-            </ul>
-            <div class="pagination-info">
-                Page {{ current_page }} of {{ total_pages }} ({{ total_posts }} articles)
-            </div>
-        </nav>
-        {% endif %}
+
+                    {% for p in range(1, total_pages + 1) %}
+                    <li class="page-item {% if p == current_page %}active{% endif %}">
+                        {% if p == current_page %}
+                        <span class="page-link" aria-current="page">{{ p }}</span>
+                        {% else %}
+                        <a href="{{ url_for('blog.index', page=p, q=query if query else None) }}" class="page-link">
+                            {{ p }}
+                        </a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+
+                    {% if current_page < total_pages %} <li class="page-item">
+                        <a href="{{ url_for('blog.index', page=current_page + 1, q=query if query else None) }}"
+                            class="page-link" aria-label="Next page">
+                            Next &rarr;
+                        </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Next &rarr;</span>
+                        </li>
+                        {% endif %}
+                </ul>
+                <div class="pagination-info">
+                    Page {{ current_page }} of {{ total_pages }} ({{ total_posts }} articles)
+                </div>
+            </nav>
+            {% endif %}
         </div>
     </div>
 
@@ -134,7 +135,8 @@
                 {% for item in popular_posts %}
                 <article class="rail-pick-item">
                     <div class="rail-pick-author">
-                        <span class="author-avatar author-avatar-xs" aria-hidden="true">{{ item.username[0]|upper }}</span>
+                        <span class="author-avatar author-avatar-xs" aria-hidden="true">{{ item.username[0]|upper
+                            }}</span>
                         <span>{{ item.username }}</span>
                     </div>
                     <a href="{{ url_for('blog.post_detail', post_id=item.id) }}" class="rail-pick-title">
