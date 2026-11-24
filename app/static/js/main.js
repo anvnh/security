@@ -16,20 +16,20 @@ document.addEventListener("DOMContentLoaded", function () {
                 "X-Requested-With": "XMLHttpRequest"
             }
         })
-        .then(response => {
-            if (!response.ok) {
+            .then(response => {
+                if (!response.ok) {
+                    toggleForm.submit();
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data) return;
+                // Reload current page to update view according to new security mode
+                window.location.reload();
+            })
+            .catch(() => {
                 toggleForm.submit();
-                return;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data) return;
-            // Reload current page to update view according to new security mode
-            window.location.reload();
-        })
-        .catch(() => {
-            toggleForm.submit();
-        });
+            });
     });
 });
