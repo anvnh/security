@@ -1,5 +1,6 @@
 """Blog and comment routes demonstrating SQL Injection Data Exfiltration and Stored XSS."""
 
+import math
 import sqlite3
 from flask import (
     Blueprint,
@@ -16,24 +17,39 @@ from app.security import is_secure_mode
 
 blog_bp = Blueprint("blog", __name__)
 
+PER_PAGE = 4
+
 
 @blog_bp.route("/")
 def index():
-    """List blog posts with search filter demonstrating SQL Injection Data Exfiltration."""
+    """List blog posts with pagination and search filter demonstrating SQL Injection Data Exfiltration."""
     db = get_db()
     query = request.args.get("q", "").strip()
+    page = max(1, request.args.get("page", 1, type=int))
     error_message = None
     posts = []
+    total_posts = 0
 
     if query:
         if is_secure_mode():
             # SECURE MODE: Parameterized query prevents SQL injection
             search_param = f"%{query}%"
+            count_row = db.execute(
+                "SELECT COUNT(*) FROM posts p "
+                "WHERE p.title LIKE ? OR p.content LIKE ?",
+                (search_param, search_param),
+            ).fetchone()
+            total_posts = count_row[0] if count_row else 0
+            total_pages = max(1, math.ceil(total_posts / PER_PAGE))
+            page = min(page, total_pages)
+            offset = (page - 1) * PER_PAGE
+
             posts = db.execute(
                 "SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id "
                 "WHERE p.title LIKE ? OR p.content LIKE ? "
-                "ORDER BY p.created_at DESC",
-                (search_param, search_param),
+                "ORDER BY p.created_at DESC "
+                "LIMIT ? OFFSET ?",
+                (search_param, search_param, PER_PAGE, offset),
             ).fetchall()
         else:
             # VULNERABLE MODE: Unsafe string formatting allows UNION Data Exfiltration
@@ -44,18 +60,33 @@ def index():
             )
             try:
                 posts = db.execute(raw_sql).fetchall()
+                total_posts = len(posts)
+                total_pages = 1
             except sqlite3.OperationalError as e:
                 error_message = f"Database Error: {e}"
+                posts = []
+                total_pages = 1
     else:
+        count_row = db.execute("SELECT COUNT(*) FROM posts").fetchone()
+        total_posts = count_row[0] if count_row else 0
+        total_pages = max(1, math.ceil(total_posts / PER_PAGE))
+        page = min(page, total_pages)
+        offset = (page - 1) * PER_PAGE
+
         posts = db.execute(
             "SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id "
-            "ORDER BY p.created_at DESC"
+            "ORDER BY p.created_at DESC "
+            "LIMIT ? OFFSET ?",
+            (PER_PAGE, offset),
         ).fetchall()
 
     return render_template(
         "blog/index.html",
         posts=posts,
         query=query,
+        current_page=page,
+        total_pages=total_pages,
+        total_posts=total_posts,
         error_message=error_message,
     )
 

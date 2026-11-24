@@ -38,7 +38,8 @@ def test_post_view_and_comment_flow(client):
     """Browsing posts and adding legitimate comments."""
     res = client.get("/")
     assert res.status_code == 200
-    assert b"Welcome to the Web Security Lab" in res.data
+    assert b"Articles & Dispatches" in res.data
+    assert b"Effective Cache Invalidation Strategies" in res.data
 
     # Post a legitimate comment
     post_comment = client.post(
@@ -51,6 +52,27 @@ def test_post_view_and_comment_flow(client):
     )
     assert post_comment.status_code == 200
     assert b"This is a legitimate comment analyzing defenses." in post_comment.data
+
+
+def test_blog_pagination_flow(client):
+    """Blog paginates articles at 4 per page."""
+    # Page 1
+    res_p1 = client.get("/")
+    assert res_p1.status_code == 200
+    assert b"Page 1 of 4" in res_p1.data
+    assert b"Effective Cache Invalidation Strategies" in res_p1.data
+
+    # Page 2
+    res_p2 = client.get("/?page=2")
+    assert res_p2.status_code == 200
+    assert b"Page 2 of 4" in res_p2.data
+    assert b"Next &rarr;" in res_p2.data
+
+    # Page 4 (last page)
+    res_p4 = client.get("/?page=4")
+    assert res_p4.status_code == 200
+    assert b"Page 4 of 4" in res_p4.data
+    assert b"Designing Resilient Distributed Systems" in res_p4.data
 
 
 def test_lab_guide_and_reset(client):
@@ -76,3 +98,13 @@ def test_cli_commands(runner):
     res_reset = runner.invoke(args=["reset-db"])
     assert res_reset.exit_code == 0
     assert "Reset database" in res_reset.output
+
+
+def test_post_markdown_rendering(client):
+    """Verify blog post content renders Markdown into semantic HTML."""
+    res = client.get("/posts/16")
+    assert res.status_code == 200
+    assert b"<h3>1. Fundamental Caching Topologies</h3>" in res.data
+    assert b"<div class=\"code-block\"><pre><code class=\"language-python\">" in res.data
+    assert b"<li>Cache-Aside" in res.data
+    assert b"<strong>" in res.data

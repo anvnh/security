@@ -21,6 +21,10 @@ def create_app(test_config=None):
     # Initialize database extensions and CLI commands
     init_db_app(app)
 
+    # Register custom template filters
+    from app.markdown import render_markdown
+    app.add_template_filter(render_markdown, "markdown")
+
     # Inject security mode and current user into Jinja templates
     @app.context_processor
     def inject_template_globals():

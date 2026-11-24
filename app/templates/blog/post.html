@@ -14,14 +14,14 @@
         </div>
     </header>
 
-    <div class="post-body">
-        <p>{{ post.content }}</p>
+    <div class="post-body markdown-body">
+        {{ post.content | markdown }}
     </div>
 </article>
 
 <section class="comments-section" id="comments">
     <h2>Comments ({{ comments|length }})</h2>
-    <p class="subtitle">Leave your thoughts below. (Demonstration target for Stored XSS)</p>
+    <p class="subtitle">Join the discussion and share your thoughts or engineering experience below.</p>
 
     <form action="{{ url_for('blog.add_comment', post_id=post.id) }}" method="POST" class="comment-form">
         {% if not current_user %}
