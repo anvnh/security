@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attacker Control Panel — Remote Listener</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/lab.css') }}">
+</head>
+
+<body class="attacker-body">
+    <!-- Standalone Hacker C2 Topbar -->
+    <header class="c2-topbar">
+        <div class="c2-container">
+            <div class="c2-brand">
+                <span class="c2-skull">☠️</span>
+                <span class="c2-title">ATTACKER C2 SERVER</span>
+                <span class="c2-version">v1.4.0</span>
+            </div>
+            <div class="c2-status-pill">
+                <span class="status-dot pulsing"></span>
+                <span class="c2-status-text">LISTENING on /lab/api/captured-credentials</span>
+            </div>
+            <div class="c2-links">
+                <a href="{{ url_for('blog.index') }}" target="_blank" class="c2-btn">Target Website ↗</a>
+                <a href="{{ url_for('lab.guide') }}" target="_blank" class="c2-btn">Lab Guide ↗</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="c2-main">
+        <div class="c2-container">
+            <!-- Terminal Banner -->
+            <div class="c2-terminal-banner">
+                <pre class="terminal-ascii">
+====================================================================================================
+[+] SIMULATED EXTERNAL ADVERSARY LISTENER & CREDENTIAL HARVESTER
+[+] Target Host : http://localhost:5000/ (SecDemo Blog)
+[+] Attack Vector: Stored XSS &rarr; In-Session Phishing Overlay (/posts/&lt;id&gt;)
+[+] Listener URL : POST /lab/api/captured-credentials
+====================================================================================================</pre>
+            </div>
+
+            <!-- Toolbar & Controls -->
+            <div class="c2-toolbar">
+                <div class="c2-metrics">
+                    <div class="c2-stat-box">
+                        <span class="stat-label">LISTENER STATE</span>
+                        <span class="stat-val text-success">ACTIVE</span>
+                    </div>
+                    <div class="c2-stat-box">
+                        <span class="stat-label">HARVESTED SESSIONS</span>
+                        <span class="stat-val" id="eventCount">{{ logs|length }}</span>
+                    </div>
+                </div>
+
+                <div class="c2-actions">
+                    <button type="button" id="refreshBtn" class="btn btn-secondary btn-sm">Poll Now</button>
+                    <form action="{{ url_for('lab.clear_captured_credentials') }}" method="POST" class="inline-form"
+                        id="clearForm">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Clear all harvested credentials?');">
+                            Clear Harvested Data
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Harvested Credentials Data Table -->
+            <div class="c2-table-wrapper">
+                <div class="c2-table-header">
+                    <h3>Intercepted Credential Stream</h3>
+                    <span class="c2-live-tag">● Live Auto-Sync (1.5s)</span>
+                </div>
+                <table class="attacker-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th style="width: 170px;">Captured At</th>
+                            <th style="width: 150px;">Target Origin</th>
+                            <th style="width: 180px;">Exfiltrated Username</th>
+                            <th style="width: 200px;">Exfiltrated Password</th>
+                            <th>Victim User-Agent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        {% if logs %}
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.id }}</td>
+                            <td class="text-muted">{{ log.created_at }}</td>
+                            <td><code>{{ log.source_page or '/' }}</code></td>
+                            <td><strong class="captured-user">{{ log.username }}</strong></td>
+                            <td><code class="captured-pwd">{{ log.password }}</code></td>
+                            <td class="ua-cell text-muted" title="{{ log.user_agent }}">{{ log.user_agent[:45] }}{% if
+                                log.user_agent|length > 45 %}...{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr id="emptyRow">
+                            <td colspan="6" class="empty-state-cell">
+                                <div class="empty-feed">
+                                    <span class="radar-icon">📡</span>
+                                    <p>No exfiltrated credentials captured yet.</p>
+                                    <span class="hint-text">Waiting for a victim on the target blog to enter credentials
+                                        into the In-Session Phishing form...</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            var tableBody = document.getElementById('logsTableBody');
+            var countBadge = document.getElementById('eventCount');
+            var refreshBtn = document.getElementById('refreshBtn');
+
+            function fetchLogs() {
+                fetch('/lab/api/captured-credentials')
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        renderTable(data.events || []);
+                    })
+                    .catch(function (err) {
+                        console.error('Error fetching logs:', err);
+                    });
+            }
+
+            function renderTable(events) {
+                countBadge.textContent = events.length;
+                if (events.length === 0) {
+                    tableBody.innerHTML = '<tr id="emptyRow"><td colspan="6" class="empty-state-cell">' +
+                        '<div class="empty-feed"><span class="radar-icon">📡</span>' +
+                        '<p>No exfiltrated credentials captured yet.</p>' +
+                        '<span class="hint-text">Waiting for a victim on the target blog to enter credentials into the In-Session Phishing form...</span>' +
+                        '</div></td></tr>';
+                    return;
+                }
+
+                var html = '';
+                for (var i = 0; i < events.length; i++) {
+                    var item = events[i];
+                    var ua = item.user_agent || '';
+                    var uaShort = ua.length > 45 ? ua.substring(0, 45) + '...' : ua;
+                    html += '<tr>' +
+                        '<td>' + item.id + '</td>' +
+                        '<td class="text-muted">' + escapeHtml(item.created_at) + '</td>' +
+                        '<td><code>' + escapeHtml(item.source_page || '/') + '</code></td>' +
+                        '<td><strong class="captured-user">' + escapeHtml(item.username) + '</strong></td>' +
+                        '<td><code class="captured-pwd">' + escapeHtml(item.password) + '</code></td>' +
+                        '<td class="ua-cell text-muted" title="' + escapeHtml(ua) + '">' + escapeHtml(uaShort) + '</td>' +
+                        '</tr>';
+                }
+                tableBody.innerHTML = html;
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', fetchLogs);
+            }
+
+            // Live Auto-poll every 1500ms
+            setInterval(fetchLogs, 1500);
+        })();
+    </script>
+</body>
+
+</html>
