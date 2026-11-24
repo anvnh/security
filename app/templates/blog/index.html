@@ -27,6 +27,20 @@
                     </div>
                 </form>
 
+                {% if query %}
+                {# Reflected XSS injection point: in Vulnerable Mode, query is rendered unescaped.
+                   In Secure Mode, Jinja2 auto-escaping treats query as plain text.
+                   is_secure is injected globally by the context processor (same source as comment rendering). #}
+                <p class="search-results-label">
+                    Showing results for:
+                    {% if not is_secure %}
+                    <strong>{{ query | safe }}</strong>
+                    {% else %}
+                    <strong>{{ query }}</strong>
+                    {% endif %}
+                </p>
+                {% endif %}
+
                 {% if error_message %}
                 <div class="alert alert-danger error-leak-box">
                     <strong>Database Error:</strong>

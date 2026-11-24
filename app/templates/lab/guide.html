@@ -64,6 +64,7 @@
             <nav class="lab-toc">
                 <a href="#sqli" class="toc-badge">1. SQL Injection (Full Attack Chain)</a>
                 <a href="#xss" class="toc-badge">2. Stored Cross-Site Scripting (XSS)</a>
+                <a href="#rxss" class="toc-badge">3. Reflected XSS (Phishing Link Delivery)</a>
             </nav>
 
             <!-- 1. SQL Injection Full Attack Chain -->
@@ -172,8 +173,7 @@
                         This allows an attacker
                         to inject arbitrary HTML and JavaScript that executes in the security context of any victim
                         viewing the post.</p>
-                    <p><strong>Target Feature:</strong> Post Comments (<a
-                            href="{{ blog_url('/posts/1#comments') }}"
+                    <p><strong>Target Feature:</strong> Post Comments (<a href="{{ blog_url('/posts/1#comments') }}"
                             target="_blank"><code>:5000/posts/1#comments</code></a>)</p>
                     <p><strong>Prerequisites:</strong> Sign in with an account (e.g., <code>alice</code> /
                         <code>alice123</code>, register a new account, or use the SQLi login bypass) to read full
@@ -224,6 +224,58 @@
                         <strong>Source Code Reference:</strong> <code>app/templates/blog/post.html</code> (line 55-60)
                         &amp;
                         <code>app/routes/blog.py:add_comment()</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Reflected XSS -->
+            <section class="lab-card" id="rxss">
+                <div class="lab-card-header">
+                    <span class="vulnerability-tag">CWE-79</span>
+                    <h2>3. Reflected XSS — Phishing Link Delivery via Comment</h2>
+                </div>
+                <div class="lab-card-body">
+                    <p><strong>Description &amp; Root Cause:</strong> The search results page reflects the
+                        <code>q</code> query parameter directly into the HTML response without escaping.
+                        A crafted URL containing an HTML/JavaScript payload executes in the victim's
+                        browser the moment they click the link — without storing anything in the database.
+                        Unlike Stored XSS, Reflected XSS requires the attacker to deliver the malicious
+                        URL to the victim through a social engineering channel.
+                    </p>
+                    <p><strong>Target Feature:</strong> Post Search — <code>/?q=&lt;payload&gt;</code>
+                        reflected in the "Showing results for:" banner on the home page.</p>
+
+                    <h3>Crafted Comment Payload</h3>
+                    <p>This comment embeds an anchor that hides the malicious URL behind natural anchor
+                        text. The URL is percent-encoded so the raw
+                        <code>&lt;script&gt;</code> tag is never visible in the comment text:
+                    </p>
+
+                    <div class="copy-box">
+                        <label>Comment Payload (Paste into Comment Box — Vulnerable Mode only):</label>
+                        <div class="copy-input-row">
+                            <input type="text" readonly
+                                value='<a href="/?q=rust+tips%22%3E%3Cscript%3Ealert(%22Reflected+XSS%3A+cookie%3D%22+%2B+document.cookie)%3C%2Fscript%3E%3Cspan+class%3D%22">🔥 Top 10 Rust performance tips (must read)</a>'
+                                class="copy-field" id="payload-rxss-comment">
+                            <button type="button" class="btn btn-secondary btn-copy"
+                                data-target="payload-rxss-comment">Copy</button>
+                        </div>
+                        <small class="form-hint">In Vulnerable Mode the comment renders raw HTML.
+                            The victim sees only the anchor text — the malicious URL is hidden behind it.</small>
+                    </div>
+
+                    <div class="copy-box">
+                        <label>Direct Crafted URL (Alternative — paste into Tab B address bar to skip the comment
+                            step):</label>
+                        <div class="copy-input-row">
+                            <input type="text" readonly
+                                value='/?q=rust+tips"><script>alert("Reflected XSS: cookie=" + document.cookie)</script><span class="'
+                                class="copy-field" id="payload-rxss-url">
+                            <button type="button" class="btn btn-secondary btn-copy"
+                                data-target="payload-rxss-url">Copy</button>
+                        </div>
+                        <small class="form-hint">Paste directly into the browser address bar to trigger
+                            without needing the comment delivery step.</small>
                     </div>
                 </div>
             </section>

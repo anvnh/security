@@ -1024,6 +1024,15 @@ h2 {
     padding-left: 32px;
 }
 
+.comment-content a {
+    color: #4493f8;
+    text-decoration: underline;
+}
+
+.comment-content a:hover {
+    color: #6ab0ff;
+}
+
 .empty-comments {
     color: var(--text-secondary);
     font-size: 14px;
